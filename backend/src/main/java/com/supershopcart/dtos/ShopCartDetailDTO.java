@@ -6,6 +6,7 @@ import com.supershopcart.models.GroceryItem;
 import com.supershopcart.models.SharePermissionEntry;
 import com.supershopcart.models.ShopCart;
 import com.supershopcart.models.Shopper;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,19 +23,19 @@ import java.util.List;
 @Getter
 public class ShopCartDetailDTO {
     // Getters and setters...
-    private String identifier;
-    private String name;
-    private String dateKey;
+    @NotBlank private String identifier;
+    @NotBlank private String name;
+    @NotBlank private String dateKey;
     private List<GroceryItem> items;
     private List<String> shopperIds;
     private List<ShopperSummaryDTO> shoppers; // Include shopper details for detailed view
-    private String createdBy;
+    @NotBlank private String createdBy;
     private List<SharePermissionEntry> sharePermissions; // This is the field that uses SharePermissionEntry
-    private ShopCartState state;
-    private Date createdAt;
+    @NotBlank private ShopCartState state;
+    @NotBlank private Date createdAt;
     private Date lastModified;
     private Date lastInteraction;
-    private boolean isTemplate;
+    @NotBlank private boolean isTemplate;
     private String templateName;
 
     // Constructor to handle identifier from document ID

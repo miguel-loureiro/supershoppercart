@@ -1,6 +1,7 @@
 package com.supershopcart.dtos;
 
 import com.supershopcart.models.Shopper;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,9 +9,9 @@ import lombok.Setter;
 @Setter
 @Getter
 public class ShopperSummaryDTO {
-    private String id;
-    private String email;
-    private String name;
+    @NotBlank private String id;
+    @NotBlank private String email;
+    @NotBlank private String name;
 
     public ShopperSummaryDTO() {
     }

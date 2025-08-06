@@ -2,21 +2,22 @@ package com.supershopcart.dtos;
 
 import com.supershopcart.enums.ShopCartState;
 import com.supershopcart.models.ShopCart;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.Date;
 import java.util.List;
 
 public class ShopCartSummaryDTO {
-    private String identifier;
-    private String dateKey;
-    private int itemCount;
-    private int purchasedCount;
+    @NotBlank private String identifier;
+    @NotBlank private String dateKey;
+    @NotBlank private int itemCount;
+    @NotBlank private int purchasedCount;
     private List<String> shopperIds;
-    private String createdBy;
-    private ShopCartState state;
-    private Date createdAt;
+    @NotBlank private String createdBy;
+    @NotBlank private ShopCartState state;
+    @NotBlank private Date createdAt;
     private Date lastModified;
-    private boolean isTemplate;
+    @NotBlank private boolean isTemplate;
     private String templateName;
 
     public ShopCartSummaryDTO(ShopCart shopCart) {

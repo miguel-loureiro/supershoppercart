@@ -8,6 +8,7 @@ import com.supershopcart.models.Shopper;
 import com.supershopcart.repositories.ShopperRepository;
 import com.supershopcart.security.GoogleTokenVerifier;
 import com.supershopcart.services.JwtTokenService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,7 +34,7 @@ public class AuthController {
     }
 
     @PostMapping("/google")
-    public ResponseEntity<?> loginWithGoogle(@RequestHeader("Authorization") String authHeader,
+    public ResponseEntity<?> loginWithGoogle(@Valid @RequestHeader("Authorization") String authHeader,
                                              @RequestHeader(value = "X-Device-Id", required = false) String deviceId)
             throws Exception {
 
@@ -102,7 +103,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> body) throws Exception {
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody Map<String, String> body) throws Exception {
         String refreshToken = body.get("refreshToken");
         String deviceId = body.get("deviceId");
 
@@ -145,7 +146,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody Map<String, String> body) throws Exception {
+    public ResponseEntity<?> logout(@Valid @RequestBody Map<String, String> body) throws Exception {
         String refreshToken = body.get("refreshToken");
         String deviceId = body.get("deviceId");
 
@@ -169,7 +170,7 @@ public class AuthController {
     }
 
     @PostMapping("/logout-all")
-    public ResponseEntity<?> logoutAllDevices(@RequestBody Map<String, String> body) throws Exception {
+    public ResponseEntity<?> logoutAllDevices(@Valid @RequestBody Map<String, String> body) throws Exception {
         String shopperId = body.get("shopperId");
 
         if (shopperId == null || shopperId.isBlank()) {
