@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ShopperSummaryDTO.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">supershopcart</a> &gt; <a href="index.source.html" class="el_package">com.supershopcart.dtos</a> &gt; <span class="el_source">ShopperSummaryDTO.java</span></div><h1>ShopperSummaryDTO.java</h1><pre class="source lang-java linenums">package com.supershopcart.dtos;
+
+import com.supershopcart.models.Shopper;
+import lombok.Getter;
+import lombok.Setter;
+
+// Lightweight shopper DTO for when you need basic shopper info
+<span class="fc" id="L8">@Setter</span>
+@Getter
+public class ShopperSummaryDTO {
+<span class="fc" id="L11">    private String id;</span>
+<span class="fc" id="L12">    private String email;</span>
+<span class="fc" id="L13">    private String name;</span>
+
+<span class="fc" id="L15">    public ShopperSummaryDTO() {</span>
+<span class="fc" id="L16">    }</span>
+
+<span class="fc" id="L18">    public ShopperSummaryDTO(Shopper shopper) {</span>
+<span class="fc" id="L19">        this.id = shopper.getId();</span>
+<span class="fc" id="L20">        this.email = shopper.getEmail();</span>
+<span class="fc" id="L21">        this.name = shopper.getName();</span>
+<span class="fc" id="L22">    }</span>
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

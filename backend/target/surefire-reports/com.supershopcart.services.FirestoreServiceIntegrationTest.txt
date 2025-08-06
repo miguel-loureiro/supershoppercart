@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.supershopcart.services.FirestoreServiceIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.375 s -- in com.supershopcart.services.FirestoreServiceIntegrationTest

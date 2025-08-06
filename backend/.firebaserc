@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "fir-supershopcart-test",
+    "demo-supershopcart-test": "fir-supershopcart-test"
+  },
+  "targets": {},
+  "etags": {}
+}

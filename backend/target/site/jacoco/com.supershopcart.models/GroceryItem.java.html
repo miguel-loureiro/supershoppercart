@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GroceryItem.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">supershopcart</a> &gt; <a href="index.source.html" class="el_package">com.supershopcart.models</a> &gt; <span class="el_source">GroceryItem.java</span></div><h1>GroceryItem.java</h1><pre class="source lang-java linenums">package com.supershopcart.models;
+
+import lombok.Getter;
+import lombok.Setter;
+
+import java.util.Objects;
+
+// Make the class public so it can be accessed from other packages
+<span class="fc" id="L9">@Setter</span>
+@Getter
+public class GroceryItem {
+
+<span class="fc" id="L13">    private String designation;</span>
+<span class="fc" id="L14">    private String quantity;</span>
+<span class="fc" id="L15">    private boolean purchased;</span>
+
+<span class="fc" id="L17">    public GroceryItem() {</span>
+        // No-argument constructor required by Firestore for object mapping
+<span class="fc" id="L19">    }</span>
+
+<span class="fc" id="L21">    public GroceryItem(String designation, String quantity) {</span>
+<span class="fc" id="L22">        this.designation = designation;</span>
+<span class="fc" id="L23">        this.quantity = quantity;</span>
+<span class="fc" id="L24">        this.purchased = false;</span>
+<span class="fc" id="L25">    }</span>
+
+<span class="fc" id="L27">    public GroceryItem(String designation, String quantity, boolean purchased) {</span>
+<span class="fc" id="L28">        this.designation = designation;</span>
+<span class="fc" id="L29">        this.quantity = quantity;</span>
+<span class="fc" id="L30">        this.purchased = purchased;</span>
+<span class="fc" id="L31">    }</span>
+
+    // --- Getters and Setters ---
+
+    @Override
+    public boolean equals(Object o) {
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (this == o) return true;</span>
+<span class="pc bpc" id="L38" title="2 of 4 branches missed.">        if (o == null || getClass() != o.getClass()) return false;</span>
+<span class="fc" id="L39">        GroceryItem that = (GroceryItem) o;</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        return purchased == that.purchased &amp;&amp;</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">                Objects.equals(designation, that.designation) &amp;&amp;</span>
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">                Objects.equals(quantity, that.quantity);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="fc" id="L47">        return Objects.hash(designation, quantity, purchased);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L52">        return &quot;GroceryItem{&quot; +</span>
+                &quot;designation='&quot; + designation + '\'' +
+                &quot;, quantity='&quot; + quantity + '\'' +
+                &quot;, purchased=&quot; + purchased +
+                '}';
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

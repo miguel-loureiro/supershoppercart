@@ -1,0 +1,32 @@
+
+services:
+  firebase-emulator:
+    image: node:18
+    container_name: firebase-emulator
+    working_dir: /app
+    ports:
+      - "8081:8081"  # Firestore emulator
+      - "4001:4001"  # Emulator UI
+      - "9099:9099"  # Auth emulator (if needed)
+    volumes:
+      - .:/app
+      - firebase_data:/app/.firebase
+    command: >
+      bash -c "
+        apt-get update &&
+        apt-get install -y default-jre &&
+        npm install -g firebase-tools &&
+        firebase emulators:start --only firestore,ui --project fir-supershopcart-test --token fake-token
+      "
+    environment:
+      - FIRESTORE_EMULATOR_HOST=0.0.0.0:8081
+      - FIREBASE_TOKEN=fake-token
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  firebase_data:
