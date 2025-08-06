@@ -136,8 +136,8 @@ public class FirestoreService {
      * @throws RuntimeException if there's an error during Firestore operation.
      */
     public ShopCartDetailDTO getShopCartById(String cartId) {
-<span class="fc bfc" id="L139" title="All 4 branches covered.">        if (cartId == null || cartId.trim().isEmpty()) {</span>
-<span class="fc" id="L140">            throw new IllegalArgumentException(&quot;Cart ID cannot be null or empty when getting a shop cart by ID.&quot;);</span>
+<span class="pc bpc" id="L139" title="2 of 4 branches missed.">        if (cartId == null || cartId.trim().isEmpty()) {</span>
+<span class="nc" id="L140">            throw new IllegalArgumentException(&quot;Cart ID cannot be null or empty when getting a shop cart by ID.&quot;);</span>
         }
         try {
 <span class="fc" id="L143">            DocumentReference docRef = firestore.collection(&quot;shopcarts&quot;).document(cartId);</span>
@@ -228,8 +228,8 @@ public class FirestoreService {
      * Shares a cart with another shopper by email
      */
     public boolean shareCartWithShopper(String cartId, String requesterShopperId, String targetEmail, SharePermission permission) {
-<span class="fc bfc" id="L231" title="All 8 branches covered.">        if (cartId == null || requesterShopperId == null || targetEmail == null || permission == null) {</span>
-<span class="fc" id="L232">            throw new IllegalArgumentException(&quot;All parameters are required for sharing a cart&quot;);</span>
+<span class="pc bpc" id="L231" title="4 of 8 branches missed.">        if (cartId == null || requesterShopperId == null || targetEmail == null || permission == null) {</span>
+<span class="nc" id="L232">            throw new IllegalArgumentException(&quot;All parameters are required for sharing a cart&quot;);</span>
         }
 
         try {

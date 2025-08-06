@@ -177,7 +177,7 @@ public class FirebaseConfig {
 <span class="fc" id="L177">        } catch (Exception e) {</span>
 <span class="fc" id="L178">            logger.error(&quot;❌ CONFIG CONNECTION TEST FAILED: {}&quot;, e.getMessage());</span>
 
-<span class="fc bfc" id="L180" title="All 2 branches covered.">            if (e.getMessage().contains(&quot;UNAVAILABLE&quot;) ||</span>
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">            if (e.getMessage().contains(&quot;UNAVAILABLE&quot;) ||</span>
 <span class="pc bpc" id="L181" title="1 of 2 branches missed.">                    e.getMessage().contains(&quot;Connection refused&quot;) ||</span>
 <span class="nc bnc" id="L182" title="All 2 branches missed.">                    e.getMessage().contains(&quot;Failed to connect&quot;)) {</span>
 <span class="fc" id="L183">                logger.error(&quot;💡 This suggests:&quot;);</span>

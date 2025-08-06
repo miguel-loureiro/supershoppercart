@@ -248,11 +248,11 @@ public class ShopCart {
      */
     public boolean canEdit(String shopperId) {
         // Cart creator implicitly has ADMIN permission
-<span class="fc bfc" id="L251" title="All 2 branches covered.">        if (shopperId.equals(this.createdBy)) {</span>
-<span class="fc" id="L252">            return true;</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">        if (shopperId.equals(this.createdBy)) {</span>
+<span class="nc" id="L252">            return true;</span>
         }
-<span class="fc" id="L254">        SharePermission permission = getPermissionForShopper(shopperId);</span>
-<span class="fc bfc" id="L255" title="All 4 branches covered.">        return permission == SharePermission.EDIT || permission == SharePermission.ADMIN;</span>
+<span class="nc" id="L254">        SharePermission permission = getPermissionForShopper(shopperId);</span>
+<span class="nc bnc" id="L255" title="All 4 branches missed.">        return permission == SharePermission.EDIT || permission == SharePermission.ADMIN;</span>
     }
 
     /**
@@ -302,7 +302,7 @@ public class ShopCart {
 <span class="fc" id="L302">        return &quot;ShopCart{&quot; +</span>
                 &quot;id='&quot; + id + '\'' +
                 &quot;, dateKey='&quot; + dateKey + '\'' +
-<span class="fc bfc" id="L305" title="All 2 branches covered.">                &quot;, items=&quot; + (items != null ? items.size() : 0) + &quot; items&quot; +</span>
+<span class="pc bpc" id="L305" title="1 of 2 branches missed.">                &quot;, items=&quot; + (items != null ? items.size() : 0) + &quot; items&quot; +</span>
 <span class="fc" id="L306">                &quot;, shopperIds=&quot; + shopperIds.size() + &quot; shoppers&quot; +</span>
                 &quot;, createdBy='&quot; + createdBy + '\'' +
 <span class="pc bpc" id="L308" title="1 of 2 branches missed.">                &quot;, sharePermissions=&quot; + (sharePermissions != null ? sharePermissions.size() : 0) + &quot; entries&quot; +</span>
