@@ -17,7 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("api/vi//auth")
 public class AuthController {
 
     private final JwtTokenService jwtTokenService;

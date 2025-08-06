@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutionException;
  * These endpoints should be secured with appropriate administrative roles.
  */
 @RestController
-@RequestMapping("/admin")
+@RequestMapping("/api/v1/admin")
 public class AdminController {
 
     private final ShopperRepository shopperRepository;
