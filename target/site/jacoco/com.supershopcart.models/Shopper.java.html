@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Shopper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">supershopcart</a> &gt; <a href="index.source.html" class="el_package">com.supershopcart.models</a> &gt; <span class="el_source">Shopper.java</span></div><h1>Shopper.java</h1><pre class="source lang-java linenums">package com.supershopcart.models;
+
+import com.google.cloud.firestore.annotation.DocumentId;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+
+@Getter
+<span class="fc" id="L13">@Setter</span>
+public class Shopper {
+
+    @DocumentId
+<span class="fc" id="L17">    private String id;  // Firestore document ID</span>
+
+<span class="fc" id="L19">    private String email;</span>
+<span class="fc" id="L20">    private String name;</span>
+
+    // Optional: used internally, but not required for Google-authenticated users
+<span class="fc" id="L23">    private String password;</span>
+
+    // To identify auth provider: &quot;google&quot;, &quot;manual&quot;, etc.
+<span class="fc" id="L26">    private String provider = &quot;google&quot;;</span>
+
+    // Only storing cart IDs, not embedded cart documents
+<span class="fc" id="L29">    private List&lt;String&gt; shopCartIds = new ArrayList&lt;&gt;();</span>
+
+    // Firestore requires a no-arg constructor
+<span class="fc" id="L32">    public Shopper() {}</span>
+
+<span class="fc" id="L34">    public Shopper(String email, String name) {</span>
+<span class="fc" id="L35">        this.email = email;</span>
+<span class="fc" id="L36">        this.name = name;</span>
+<span class="fc" id="L37">        this.provider = &quot;google&quot;;</span>
+<span class="fc" id="L38">        this.password = null; // No password needed for Google-authenticated users</span>
+<span class="fc" id="L39">    }</span>
+
+<span class="fc" id="L41">    public Shopper(String email, String name, String provider) {</span>
+<span class="fc" id="L42">        this.email = email;</span>
+<span class="fc" id="L43">        this.name = name;</span>
+<span class="fc" id="L44">        this.provider = provider;</span>
+<span class="fc" id="L45">        this.password = null;</span>
+<span class="fc" id="L46">    }</span>
+
+    // --- Overrides ---
+
+    @Override
+    public boolean equals(Object o) {
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (this == o) return true;</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        if (!(o instanceof Shopper)) return false;</span>
+<span class="fc" id="L54">        Shopper shopper = (Shopper) o;</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        return Objects.equals(id, shopper.id) &amp;&amp;</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">                Objects.equals(email, shopper.email) &amp;&amp;</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">                Objects.equals(name, shopper.name) &amp;&amp;</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">                Objects.equals(provider, shopper.provider) &amp;&amp;</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">                Objects.equals(shopCartIds, shopper.shopCartIds);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L64">        return Objects.hash(id, email, name, provider, shopCartIds);</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="fc" id="L69">        return &quot;Shopper{&quot; +</span>
+                &quot;id='&quot; + id + '\'' +
+                &quot;, email='&quot; + email + '\'' +
+                &quot;, name='&quot; + name + '\'' +
+                &quot;, provider='&quot; + provider + '\'' +
+                &quot;, shopCartIds=&quot; + shopCartIds +
+                '}';
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

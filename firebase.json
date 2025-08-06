@@ -1,0 +1,20 @@
+{
+  "projectId": "fir-supershopcart-test",
+  "emulators": {
+    "firestore": {
+      "port": 8081,
+      "host": "0.0.0.0",
+      "rules": "firestore.rules",
+      "singleProjectMode": false
+    },
+    "ui": {
+      "port": 4001
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "nam5",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

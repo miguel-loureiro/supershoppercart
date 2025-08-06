@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ShopperService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">supershopcart</a> &gt; <a href="index.source.html" class="el_package">com.supershopcart.services</a> &gt; <span class="el_source">ShopperService.java</span></div><h1>ShopperService.java</h1><pre class="source lang-java linenums">package com.supershopcart.services;
+
+import com.supershopcart.models.Shopper;
+import com.supershopcart.repositories.ShopCartRepository;
+import com.supershopcart.repositories.ShopperRepository;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+
+@Service
+public class ShopperService {
+
+    private final ShopCartRepository shopCartRepository;
+    private final ShopperRepository shopperRepository;
+
+<span class="fc" id="L18">    public ShopperService(ShopCartRepository shopCartRepository, ShopperRepository shopperRepository) {</span>
+<span class="fc" id="L19">        this.shopCartRepository = shopCartRepository;</span>
+<span class="fc" id="L20">        this.shopperRepository = shopperRepository;</span>
+<span class="fc" id="L21">    }</span>
+
+    // Shopper-related service methods could go here or in a separate ShopperService
+    /**
+     * Registers a new shopper.
+     * @param email Shopper's email.
+     * @param name Shopper's name.
+     * @param password Shopper's password (will be hashed).
+     * @return The registered Shopper.
+     * @throws ExecutionException If a Firestore operation fails.
+     * @throws InterruptedException If the thread is interrupted.
+     * @throws IllegalArgumentException If a shopper with the given email already exists.
+     */
+    public Shopper registerShopper(String email, String name, String password)
+            throws ExecutionException, InterruptedException, IllegalArgumentException {
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        if (shopperRepository.findByEmail(email).isPresent()) {</span>
+<span class="fc" id="L37">            throw new IllegalArgumentException(&quot;Shopper with email &quot; + email + &quot; already exists.&quot;);</span>
+        }
+<span class="fc" id="L39">        Shopper newShopper = new Shopper(email, name, password);</span>
+<span class="fc" id="L40">        return shopperRepository.save(newShopper);</span>
+    }
+
+    /**
+     * Gets a shopper by ID.
+     * @param shopperId The ID of the shopper.
+     * @return An Optional containing the Shopper if found.
+     * @throws ExecutionException If a Firestore operation fails.
+     * @throws InterruptedException If the thread is interrupted.
+     */
+    public Optional&lt;Shopper&gt; getShopperById(String shopperId) throws ExecutionException, InterruptedException {
+<span class="fc" id="L51">        return shopperRepository.findById(shopperId);</span>
+    }
+
+    /**
+     * Gets a shopper by email.
+     * @param email The email of the shopper.
+     * @return An Optional containing the Shopper if found.
+     * @throws ExecutionException If a Firestore operation fails.
+     * @throws InterruptedException If the thread is interrupted.
+     */
+    public Optional&lt;Shopper&gt; getShopperByEmail(String email) throws ExecutionException, InterruptedException {
+<span class="fc" id="L62">        return shopperRepository.findByEmail(email);</span>
+    }
+
+    /**
+     * Retrieves all shoppers.
+     * @return A list of all shoppers.
+     * @throws ExecutionException If a Firestore operation fails.
+     * @throws InterruptedException If the thread is interrupted.
+     */
+    public List&lt;Shopper&gt; getAllShoppers() throws ExecutionException, InterruptedException {
+<span class="fc" id="L72">        return shopperRepository.findAll();</span>
+    }
+
+    /**
+     * Deletes a shopper.
+     * @param shopperId The ID of the shopper to delete.
+     * @throws ExecutionException If a Firestore operation fails.
+     * @throws InterruptedException If the thread is interrupted.
+     */
+    public void deleteShopper(String shopperId) throws ExecutionException, InterruptedException {
+        // Potentially handle orphaned shop carts or set shopperIds to null in carts
+        // For simplicity, we'll just delete the shopper here.
+<span class="fc" id="L84">        shopperRepository.deleteById(shopperId);</span>
+<span class="fc" id="L85">    }</span>
+
+    /**
+     * Clears all data in the repositories. Useful for testing.
+     */
+    public void clearAllData() throws ExecutionException, InterruptedException {
+<span class="fc" id="L91">        shopCartRepository.deleteAll();</span>
+<span class="fc" id="L92">        shopperRepository.deleteAll();</span>
+<span class="fc" id="L93">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
