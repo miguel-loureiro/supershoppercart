@@ -14,17 +14,16 @@ import java.util.Map;
 @SpringBootApplication
 @EnableScheduling
 public class SupershopcartApplication {
-	public static void main(String[] args) {
-		// Set the active profile
-		System.setProperty("spring.profiles.active", "dev-emulator");
+    public static void main(String[] args) {
+        // A Spring Boot application will automatically use the active profile
+        // set by environment variables (e.g., SPRING_PROFILES_ACTIVE) or
+        // command-line arguments (e.g., --spring.profiles.active=dev-emulator).
+        // We remove the hardcoded setting here to maintain flexibility.
 
-		// Debug output to verify environment variables
-		System.out.println("FIRESTORE_EMULATOR_HOST: " + System.getenv("FIRESTORE_EMULATOR_HOST"));
-		System.out.println("GCLOUD_PROJECT: " + System.getenv("GCLOUD_PROJECT"));
-
-		ConfigurableApplicationContext context = SpringApplication.run(SupershopcartApplication.class, args);
-		Environment env = context.getEnvironment();
-		String activeProfiles = String.join(", ", env.getActiveProfiles());
-		System.out.println("Active Spring Profiles: [" + activeProfiles + "]");
-	}
+        // Running the application
+        ConfigurableApplicationContext context = SpringApplication.run(SupershopcartApplication.class, args);
+        Environment env = context.getEnvironment();
+        String activeProfiles = String.join(", ", env.getActiveProfiles());
+        System.out.println("Active Spring Profiles: [" + activeProfiles + "]");
+    }
 }
