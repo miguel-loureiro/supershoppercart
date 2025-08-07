@@ -9,6 +9,7 @@ com/supershopcart/enums/ShopCartState.class
 com/supershopcart/services/ShopperService.class
 com/supershopcart/security/filter/JwtAuthFilter.class
 com/supershopcart/seeder/ShopCartSeeder.class
+com/supershopcart/SuperShopperCartApplication.class
 com/supershopcart/dtos/ShopCartDetailDTO.class
 com/supershopcart/controllers/AdminController.class
 com/supershopcart/config/FirebaseConfig$NoCredentials.class
@@ -22,9 +23,9 @@ com/supershopcart/controllers/ShopCartController.class
 com/supershopcart/services/FirestoreService.class
 com/supershopcart/repositories/ShopperRepository.class
 com/supershopcart/dtos/ShopperSummaryDTO.class
+com/supershopcart/exceptions/GlobalExceptionHandler.class
 com/supershopcart/config/SecurityConfig.class
 com/supershopcart/repositories/ShopperRepositoryImpl.class
-com/supershopcart/SupershopcartApplication.class
 com/supershopcart/models/SharePermissionEntry.class
 com/supershopcart/enums/SharePermission.class
 com/supershopcart/repositories/ShopCartRepository.class

@@ -6,6 +6,7 @@ import com.supershopcart.models.GroceryItem;
 import com.supershopcart.models.SharePermissionEntry;
 import com.supershopcart.models.ShopCart;
 import com.supershopcart.models.Shopper;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,41 +19,41 @@ import java.util.List;
  * Apply the DTO pattern to expose only the necessary ShopCart fields in your API,
  * especially the identifier and dateKey for filtering, along with associated items and shoppers.
  */
-<span class="fc" id="L21">@Setter</span>
+<span class="fc" id="L22">@Setter</span>
 @Getter
 public class ShopCartDetailDTO {
     // Getters and setters...
-<span class="fc" id="L25">    private String identifier;</span>
-<span class="fc" id="L26">    private String name;</span>
-<span class="fc" id="L27">    private String dateKey;</span>
-<span class="fc" id="L28">    private List&lt;GroceryItem&gt; items;</span>
-<span class="fc" id="L29">    private List&lt;String&gt; shopperIds;</span>
-<span class="fc" id="L30">    private List&lt;ShopperSummaryDTO&gt; shoppers; // Include shopper details for detailed view</span>
-<span class="fc" id="L31">    private String createdBy;</span>
-<span class="fc" id="L32">    private List&lt;SharePermissionEntry&gt; sharePermissions; // This is the field that uses SharePermissionEntry</span>
-<span class="fc" id="L33">    private ShopCartState state;</span>
-<span class="fc" id="L34">    private Date createdAt;</span>
-<span class="fc" id="L35">    private Date lastModified;</span>
-<span class="fc" id="L36">    private Date lastInteraction;</span>
-<span class="fc" id="L37">    private boolean isTemplate;</span>
-<span class="fc" id="L38">    private String templateName;</span>
+<span class="fc" id="L26">    @NotBlank private String identifier;</span>
+<span class="fc" id="L27">    @NotBlank private String name;</span>
+<span class="fc" id="L28">    @NotBlank private String dateKey;</span>
+<span class="fc" id="L29">    private List&lt;GroceryItem&gt; items;</span>
+<span class="fc" id="L30">    private List&lt;String&gt; shopperIds;</span>
+<span class="fc" id="L31">    private List&lt;ShopperSummaryDTO&gt; shoppers; // Include shopper details for detailed view</span>
+<span class="fc" id="L32">    @NotBlank private String createdBy;</span>
+<span class="fc" id="L33">    private List&lt;SharePermissionEntry&gt; sharePermissions; // This is the field that uses SharePermissionEntry</span>
+<span class="fc" id="L34">    @NotBlank private ShopCartState state;</span>
+<span class="fc" id="L35">    @NotBlank private Date createdAt;</span>
+<span class="fc" id="L36">    private Date lastModified;</span>
+<span class="fc" id="L37">    private Date lastInteraction;</span>
+<span class="fc" id="L38">    @NotBlank private boolean isTemplate;</span>
+<span class="fc" id="L39">    private String templateName;</span>
 
     // Constructor to handle identifier from document ID
-<span class="fc" id="L41">    public ShopCartDetailDTO(String identifier, ShopCart shopCart) {</span>
-<span class="fc" id="L42">        this.identifier = identifier;</span>
-<span class="fc" id="L43">        this.name = shopCart.getName();</span>
-<span class="fc" id="L44">        this.dateKey = shopCart.getDateKey();</span>
-<span class="fc" id="L45">        this.items = shopCart.getItems();</span>
-<span class="fc" id="L46">        this.shopperIds = shopCart.getShopperIds();</span>
-<span class="fc" id="L47">        this.createdBy = shopCart.getCreatedBy();</span>
-<span class="fc" id="L48">        this.sharePermissions = shopCart.getSharePermissions();</span>
-<span class="fc" id="L49">        this.state = shopCart.getState();</span>
-<span class="fc" id="L50">        this.createdAt = shopCart.getCreatedAt();</span>
-<span class="fc" id="L51">        this.lastModified = shopCart.getLastModified();</span>
-<span class="fc" id="L52">        this.lastInteraction = shopCart.getLastInteraction();</span>
-<span class="fc" id="L53">        this.isTemplate = shopCart.isTemplate();</span>
-<span class="fc" id="L54">        this.templateName = shopCart.getTemplateName();</span>
-<span class="fc" id="L55">        this.shoppers = new ArrayList&lt;&gt;(); // Populated by service later</span>
-<span class="fc" id="L56">    }</span>
+<span class="fc" id="L42">    public ShopCartDetailDTO(String identifier, ShopCart shopCart) {</span>
+<span class="fc" id="L43">        this.identifier = identifier;</span>
+<span class="fc" id="L44">        this.name = shopCart.getName();</span>
+<span class="fc" id="L45">        this.dateKey = shopCart.getDateKey();</span>
+<span class="fc" id="L46">        this.items = shopCart.getItems();</span>
+<span class="fc" id="L47">        this.shopperIds = shopCart.getShopperIds();</span>
+<span class="fc" id="L48">        this.createdBy = shopCart.getCreatedBy();</span>
+<span class="fc" id="L49">        this.sharePermissions = shopCart.getSharePermissions();</span>
+<span class="fc" id="L50">        this.state = shopCart.getState();</span>
+<span class="fc" id="L51">        this.createdAt = shopCart.getCreatedAt();</span>
+<span class="fc" id="L52">        this.lastModified = shopCart.getLastModified();</span>
+<span class="fc" id="L53">        this.lastInteraction = shopCart.getLastInteraction();</span>
+<span class="fc" id="L54">        this.isTemplate = shopCart.isTemplate();</span>
+<span class="fc" id="L55">        this.templateName = shopCart.getTemplateName();</span>
+<span class="fc" id="L56">        this.shoppers = new ArrayList&lt;&gt;(); // Populated by service later</span>
+<span class="fc" id="L57">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

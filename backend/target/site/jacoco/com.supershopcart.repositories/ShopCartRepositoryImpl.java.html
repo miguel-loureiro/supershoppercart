@@ -73,7 +73,7 @@ public class ShopCartRepositoryImpl implements ShopCartRepository {
 <span class="fc" id="L73">        ApiFuture&lt;QuerySnapshot&gt; future = shopCartsCollection.get();</span>
 <span class="fc" id="L74">        List&lt;QueryDocumentSnapshot&gt; documents = future.get().getDocuments();</span>
 
-<span class="pc bpc" id="L76" title="1 of 2 branches missed.">        if (!documents.isEmpty()) {</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (!documents.isEmpty()) {</span>
 <span class="fc bfc" id="L77" title="All 2 branches covered.">            for (QueryDocumentSnapshot doc : documents) {</span>
 <span class="fc" id="L78">                doc.getReference().delete().get();</span>
 <span class="fc" id="L79">            }</span>
