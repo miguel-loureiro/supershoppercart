@@ -8,6 +8,7 @@ import com.supershopcart.models.Shopper;
 import com.supershopcart.repositories.ShopperRepository;
 import com.supershopcart.security.GoogleTokenVerifier;
 import com.supershopcart.services.JwtTokenService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @RestController
-@RequestMapping(&quot;api/vi//auth&quot;)
+@RequestMapping(&quot;api/v1//auth&quot;)
 public class AuthController {
 
     private final JwtTokenService jwtTokenService;
@@ -25,167 +26,167 @@ public class AuthController {
     private final ShopperRepository shopperRepository;
     private final Firestore firestore; // The Firestore instance
 
-<span class="fc" id="L28">    public AuthController(JwtTokenService jwtTokenService, GoogleTokenVerifier googleTokenVerifier, ShopperRepository shopperRepository, Firestore firestore) {</span>
-<span class="fc" id="L29">        this.jwtTokenService = jwtTokenService;</span>
-<span class="fc" id="L30">        this.googleTokenVerifier = googleTokenVerifier;</span>
-<span class="fc" id="L31">        this.shopperRepository = shopperRepository;</span>
-<span class="fc" id="L32">        this.firestore = firestore;</span>
-<span class="fc" id="L33">    }</span>
+<span class="fc" id="L29">    public AuthController(JwtTokenService jwtTokenService, GoogleTokenVerifier googleTokenVerifier, ShopperRepository shopperRepository, Firestore firestore) {</span>
+<span class="fc" id="L30">        this.jwtTokenService = jwtTokenService;</span>
+<span class="fc" id="L31">        this.googleTokenVerifier = googleTokenVerifier;</span>
+<span class="fc" id="L32">        this.shopperRepository = shopperRepository;</span>
+<span class="fc" id="L33">        this.firestore = firestore;</span>
+<span class="fc" id="L34">    }</span>
 
     @PostMapping(&quot;/google&quot;)
-    public ResponseEntity&lt;?&gt; loginWithGoogle(@RequestHeader(&quot;Authorization&quot;) String authHeader,
+    public ResponseEntity&lt;?&gt; loginWithGoogle(@Valid @RequestHeader(&quot;Authorization&quot;) String authHeader,
                                              @RequestHeader(value = &quot;X-Device-Id&quot;, required = false) String deviceId)
             throws Exception {
 
         // --- Validate input headers ---
-<span class="fc bfc" id="L41" title="All 4 branches covered.">        if (authHeader == null || !authHeader.startsWith(&quot;Bearer &quot;)) {</span>
-<span class="fc" id="L42">            return ResponseEntity.badRequest().body(&quot;Missing or invalid Authorization header&quot;);</span>
+<span class="fc bfc" id="L42" title="All 4 branches covered.">        if (authHeader == null || !authHeader.startsWith(&quot;Bearer &quot;)) {</span>
+<span class="fc" id="L43">            return ResponseEntity.badRequest().body(&quot;Missing or invalid Authorization header&quot;);</span>
         }
-<span class="fc bfc" id="L44" title="All 4 branches covered.">        if (deviceId == null || deviceId.isBlank()) {</span>
-<span class="fc" id="L45">            return ResponseEntity.badRequest().body(&quot;Missing X-Device-Id header&quot;);</span>
-        }
-
-<span class="fc" id="L48">        String idToken = authHeader.substring(7).trim();</span>
-<span class="fc" id="L49">        GoogleIdToken.Payload payload = googleTokenVerifier.verify(idToken);</span>
-
-<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (payload == null) {</span>
-<span class="fc" id="L52">            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(&quot;Invalid Google token&quot;);</span>
+<span class="fc bfc" id="L45" title="All 4 branches covered.">        if (deviceId == null || deviceId.isBlank()) {</span>
+<span class="fc" id="L46">            return ResponseEntity.badRequest().body(&quot;Missing X-Device-Id header&quot;);</span>
         }
 
-<span class="fc" id="L55">        String email = payload.getEmail();</span>
-<span class="fc" id="L56">        String name = (String) payload.get(&quot;name&quot;);</span>
+<span class="fc" id="L49">        String idToken = authHeader.substring(7).trim();</span>
+<span class="fc" id="L50">        GoogleIdToken.Payload payload = googleTokenVerifier.verify(idToken);</span>
+
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (payload == null) {</span>
+<span class="fc" id="L53">            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(&quot;Invalid Google token&quot;);</span>
+        }
+
+<span class="fc" id="L56">        String email = payload.getEmail();</span>
+<span class="fc" id="L57">        String name = (String) payload.get(&quot;name&quot;);</span>
 
         // --- Find or create shopper ---
-<span class="fc" id="L59">        Optional&lt;Shopper&gt; existing = shopperRepository.findByEmail(email);</span>
+<span class="fc" id="L60">        Optional&lt;Shopper&gt; existing = shopperRepository.findByEmail(email);</span>
         Shopper shopper;
 
-<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (existing.isPresent()) {</span>
-<span class="fc" id="L63">            shopper = existing.get();</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">        if (existing.isPresent()) {</span>
+<span class="fc" id="L64">            shopper = existing.get();</span>
         } else {
             // Create new shopper first
-<span class="fc" id="L66">            shopper = new Shopper(email, name);</span>
+<span class="fc" id="L67">            shopper = new Shopper(email, name);</span>
             try {
-<span class="fc" id="L68">                shopper = shopperRepository.save(shopper); // Save to Firestore</span>
-<span class="fc" id="L69">            } catch (Exception e) {</span>
-<span class="fc" id="L70">                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)</span>
-<span class="fc" id="L71">                        .body(&quot;Failed to create new shopper: &quot; + e.getMessage());</span>
-<span class="fc" id="L72">            }</span>
+<span class="fc" id="L69">                shopper = shopperRepository.save(shopper); // Save to Firestore</span>
+<span class="fc" id="L70">            } catch (Exception e) {</span>
+<span class="fc" id="L71">                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)</span>
+<span class="fc" id="L72">                        .body(&quot;Failed to create new shopper: &quot; + e.getMessage());</span>
+<span class="fc" id="L73">            }</span>
         }
 
         // --- Generate tokens ---
-<span class="fc" id="L76">        String accessToken = jwtTokenService.generateAccessToken(shopper.getId(), deviceId);</span>
-<span class="fc" id="L77">        String refreshToken = jwtTokenService.generateRefreshToken(shopper.getId());</span>
+<span class="fc" id="L77">        String accessToken = jwtTokenService.generateAccessToken(shopper.getId(), deviceId);</span>
+<span class="fc" id="L78">        String refreshToken = jwtTokenService.generateRefreshToken(shopper.getId());</span>
 
-<span class="fc" id="L79">        RefreshToken tokenRecord = new RefreshToken(</span>
+<span class="fc" id="L80">        RefreshToken tokenRecord = new RefreshToken(</span>
                 refreshToken,
-<span class="fc" id="L81">                shopper.getId(),</span>
+<span class="fc" id="L82">                shopper.getId(),</span>
                 deviceId,
-<span class="fc" id="L83">                System.currentTimeMillis() + jwtTokenService.getRefreshTokenExpiration()</span>
+<span class="fc" id="L84">                System.currentTimeMillis() + jwtTokenService.getRefreshTokenExpiration()</span>
         );
 
         try {
             // Save refresh token (per device)
-<span class="fc" id="L88">            firestore.collection(&quot;refresh_tokens&quot;).document(refreshToken).set(tokenRecord).get();</span>
-<span class="fc" id="L89">        } catch (Exception e) {</span>
+<span class="fc" id="L89">            firestore.collection(&quot;refresh_tokens&quot;).document(refreshToken).set(tokenRecord).get();</span>
+<span class="fc" id="L90">        } catch (Exception e) {</span>
             // Rollback shopper creation if it was just created
-<span class="fc bfc" id="L91" title="All 2 branches covered.">            if (existing.isEmpty()) {</span>
-<span class="fc" id="L92">                shopperRepository.deleteById(shopper.getId()); // Cleanup</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">            if (existing.isEmpty()) {</span>
+<span class="fc" id="L93">                shopperRepository.deleteById(shopper.getId()); // Cleanup</span>
             }
-<span class="fc" id="L94">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)</span>
-<span class="fc" id="L95">                    .body(&quot;Failed to complete login: &quot; + e.getMessage());</span>
-<span class="fc" id="L96">        }</span>
+<span class="fc" id="L95">            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)</span>
+<span class="fc" id="L96">                    .body(&quot;Failed to complete login: &quot; + e.getMessage());</span>
+<span class="fc" id="L97">        }</span>
 
-<span class="fc" id="L98">        return ResponseEntity.ok(Map.of(</span>
+<span class="fc" id="L99">        return ResponseEntity.ok(Map.of(</span>
                 &quot;accessToken&quot;, accessToken,
                 &quot;refreshToken&quot;, refreshToken
         ));
     }
 
     @PostMapping(&quot;/refresh&quot;)
-    public ResponseEntity&lt;?&gt; refreshToken(@RequestBody Map&lt;String, String&gt; body) throws Exception {
-<span class="fc" id="L106">        String refreshToken = body.get(&quot;refreshToken&quot;);</span>
-<span class="fc" id="L107">        String deviceId = body.get(&quot;deviceId&quot;);</span>
+    public ResponseEntity&lt;?&gt; refreshToken(@Valid @RequestBody Map&lt;String, String&gt; body) throws Exception {
+<span class="fc" id="L107">        String refreshToken = body.get(&quot;refreshToken&quot;);</span>
+<span class="fc" id="L108">        String deviceId = body.get(&quot;deviceId&quot;);</span>
 
-<span class="pc bpc" id="L109" title="1 of 4 branches missed.">        if (refreshToken == null || deviceId == null) {</span>
-<span class="fc" id="L110">            return ResponseEntity.badRequest().body(&quot;Missing refreshToken or deviceId&quot;);</span>
+<span class="pc bpc" id="L110" title="1 of 4 branches missed.">        if (refreshToken == null || deviceId == null) {</span>
+<span class="fc" id="L111">            return ResponseEntity.badRequest().body(&quot;Missing refreshToken or deviceId&quot;);</span>
         }
 
         // Ensure this operation completes
-<span class="fc" id="L114">        DocumentSnapshot doc = firestore.collection(&quot;refresh_tokens&quot;).document(refreshToken).get().get();</span>
-<span class="fc bfc" id="L115" title="All 2 branches covered.">        if (!doc.exists()) {</span>
-<span class="fc" id="L116">            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(&quot;Invalid refresh token&quot;);</span>
+<span class="fc" id="L115">        DocumentSnapshot doc = firestore.collection(&quot;refresh_tokens&quot;).document(refreshToken).get().get();</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (!doc.exists()) {</span>
+<span class="fc" id="L117">            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(&quot;Invalid refresh token&quot;);</span>
         }
 
-<span class="fc" id="L119">        RefreshToken stored = doc.toObject(RefreshToken.class);</span>
-<span class="pc bpc" id="L120" title="2 of 6 branches missed.">        if (stored == null || !deviceId.equals(stored.getDeviceId()) || stored.getExpiry() &lt; System.currentTimeMillis()) {</span>
-<span class="fc" id="L121">            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(&quot;Refresh token expired or device mismatch&quot;);</span>
+<span class="fc" id="L120">        RefreshToken stored = doc.toObject(RefreshToken.class);</span>
+<span class="pc bpc" id="L121" title="2 of 6 branches missed.">        if (stored == null || !deviceId.equals(stored.getDeviceId()) || stored.getExpiry() &lt; System.currentTimeMillis()) {</span>
+<span class="fc" id="L122">            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(&quot;Refresh token expired or device mismatch&quot;);</span>
         }
 
         // Invalidate old token - Ensure this operation completes
-<span class="fc" id="L125">        firestore.collection(&quot;refresh_tokens&quot;).document(refreshToken).delete().get(); // Added .get() to ensure completion</span>
+<span class="fc" id="L126">        firestore.collection(&quot;refresh_tokens&quot;).document(refreshToken).delete().get(); // Added .get() to ensure completion</span>
 
         // Issue new tokens - Use instance methods
-<span class="fc" id="L128">        String newAccessToken = jwtTokenService.generateAccessToken(stored.getShopperId(), deviceId);</span>
-<span class="fc" id="L129">        String newRefreshToken = jwtTokenService.generateRefreshToken(stored.getShopperId());</span>
+<span class="fc" id="L129">        String newAccessToken = jwtTokenService.generateAccessToken(stored.getShopperId(), deviceId);</span>
+<span class="fc" id="L130">        String newRefreshToken = jwtTokenService.generateRefreshToken(stored.getShopperId());</span>
 
-<span class="fc" id="L131">        RefreshToken rotated = new RefreshToken(</span>
+<span class="fc" id="L132">        RefreshToken rotated = new RefreshToken(</span>
                 newRefreshToken,
-<span class="fc" id="L133">                stored.getShopperId(),</span>
+<span class="fc" id="L134">                stored.getShopperId(),</span>
                 deviceId,
-<span class="fc" id="L135">                System.currentTimeMillis() + jwtTokenService.getRefreshTokenExpiration()</span>
+<span class="fc" id="L136">                System.currentTimeMillis() + jwtTokenService.getRefreshTokenExpiration()</span>
         );
 
         // Ensure this operation completes
-<span class="fc" id="L139">        firestore.collection(&quot;refresh_tokens&quot;).document(newRefreshToken).set(rotated).get();</span>
+<span class="fc" id="L140">        firestore.collection(&quot;refresh_tokens&quot;).document(newRefreshToken).set(rotated).get();</span>
 
-<span class="fc" id="L141">        return ResponseEntity.ok(Map.of(</span>
+<span class="fc" id="L142">        return ResponseEntity.ok(Map.of(</span>
                 &quot;accessToken&quot;, newAccessToken,
                 &quot;refreshToken&quot;, newRefreshToken
         ));
     }
 
     @PostMapping(&quot;/logout&quot;)
-    public ResponseEntity&lt;?&gt; logout(@RequestBody Map&lt;String, String&gt; body) throws Exception {
-<span class="fc" id="L149">        String refreshToken = body.get(&quot;refreshToken&quot;);</span>
-<span class="fc" id="L150">        String deviceId = body.get(&quot;deviceId&quot;);</span>
+    public ResponseEntity&lt;?&gt; logout(@Valid @RequestBody Map&lt;String, String&gt; body) throws Exception {
+<span class="fc" id="L150">        String refreshToken = body.get(&quot;refreshToken&quot;);</span>
+<span class="fc" id="L151">        String deviceId = body.get(&quot;deviceId&quot;);</span>
 
-<span class="pc bpc" id="L152" title="2 of 4 branches missed.">        if (refreshToken == null || deviceId == null) {</span>
-<span class="nc" id="L153">            return ResponseEntity.badRequest().body(&quot;Missing refreshToken or deviceId&quot;);</span>
+<span class="pc bpc" id="L153" title="2 of 4 branches missed.">        if (refreshToken == null || deviceId == null) {</span>
+<span class="nc" id="L154">            return ResponseEntity.badRequest().body(&quot;Missing refreshToken or deviceId&quot;);</span>
         }
 
-<span class="fc" id="L156">        DocumentReference ref = firestore.collection(&quot;refresh_tokens&quot;).document(refreshToken);</span>
+<span class="fc" id="L157">        DocumentReference ref = firestore.collection(&quot;refresh_tokens&quot;).document(refreshToken);</span>
         // Ensure this operation completes
-<span class="fc" id="L158">        DocumentSnapshot doc = ref.get().get();</span>
+<span class="fc" id="L159">        DocumentSnapshot doc = ref.get().get();</span>
 
-<span class="pc bpc" id="L160" title="1 of 2 branches missed.">        if (doc.exists()) {</span>
-<span class="fc" id="L161">            RefreshToken stored = doc.toObject(RefreshToken.class);</span>
-<span class="pc bpc" id="L162" title="1 of 4 branches missed.">            if (stored != null &amp;&amp; deviceId.equals(stored.getDeviceId())) {</span>
-<span class="fc" id="L163">                ref.delete().get(); // Invalidate token for that device only - Added .get()</span>
-<span class="fc" id="L164">                return ResponseEntity.ok(Map.of(&quot;message&quot;, &quot;Logged out from device&quot;));</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">        if (doc.exists()) {</span>
+<span class="fc" id="L162">            RefreshToken stored = doc.toObject(RefreshToken.class);</span>
+<span class="pc bpc" id="L163" title="1 of 4 branches missed.">            if (stored != null &amp;&amp; deviceId.equals(stored.getDeviceId())) {</span>
+<span class="fc" id="L164">                ref.delete().get(); // Invalidate token for that device only - Added .get()</span>
+<span class="fc" id="L165">                return ResponseEntity.ok(Map.of(&quot;message&quot;, &quot;Logged out from device&quot;));</span>
             }
         }
 
-<span class="fc" id="L168">        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(&quot;Invalid logout request&quot;);</span>
+<span class="fc" id="L169">        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(&quot;Invalid logout request&quot;);</span>
     }
 
     @PostMapping(&quot;/logout-all&quot;)
-    public ResponseEntity&lt;?&gt; logoutAllDevices(@RequestBody Map&lt;String, String&gt; body) throws Exception {
-<span class="fc" id="L173">        String shopperId = body.get(&quot;shopperId&quot;);</span>
+    public ResponseEntity&lt;?&gt; logoutAllDevices(@Valid @RequestBody Map&lt;String, String&gt; body) throws Exception {
+<span class="fc" id="L174">        String shopperId = body.get(&quot;shopperId&quot;);</span>
 
-<span class="pc bpc" id="L175" title="1 of 4 branches missed.">        if (shopperId == null || shopperId.isBlank()) {</span>
-<span class="fc" id="L176">            return ResponseEntity.badRequest().body(&quot;Missing shopperId&quot;);</span>
+<span class="pc bpc" id="L176" title="1 of 4 branches missed.">        if (shopperId == null || shopperId.isBlank()) {</span>
+<span class="fc" id="L177">            return ResponseEntity.badRequest().body(&quot;Missing shopperId&quot;);</span>
         }
 
-<span class="fc" id="L179">        ApiFuture&lt;QuerySnapshot&gt; snapshot = firestore.collection(&quot;refresh_tokens&quot;)</span>
-<span class="fc" id="L180">                .whereEqualTo(&quot;shopperId&quot;, shopperId)</span>
-<span class="fc" id="L181">                .get();</span>
+<span class="fc" id="L180">        ApiFuture&lt;QuerySnapshot&gt; snapshot = firestore.collection(&quot;refresh_tokens&quot;)</span>
+<span class="fc" id="L181">                .whereEqualTo(&quot;shopperId&quot;, shopperId)</span>
+<span class="fc" id="L182">                .get();</span>
 
-<span class="fc" id="L183">        List&lt;QueryDocumentSnapshot&gt; docs = snapshot.get().getDocuments();</span>
-<span class="fc bfc" id="L184" title="All 2 branches covered.">        for (DocumentSnapshot doc : docs) {</span>
-<span class="fc" id="L185">            doc.getReference().delete().get(); // Ensure each delete operation completes</span>
-<span class="fc" id="L186">        }</span>
+<span class="fc" id="L184">        List&lt;QueryDocumentSnapshot&gt; docs = snapshot.get().getDocuments();</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">        for (DocumentSnapshot doc : docs) {</span>
+<span class="fc" id="L186">            doc.getReference().delete().get(); // Ensure each delete operation completes</span>
+<span class="fc" id="L187">        }</span>
 
-<span class="fc" id="L188">        return ResponseEntity.ok(Map.of(&quot;message&quot;, &quot;Logged out from all devices&quot;));</span>
+<span class="fc" id="L189">        return ResponseEntity.ok(Map.of(&quot;message&quot;, &quot;Logged out from all devices&quot;));</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

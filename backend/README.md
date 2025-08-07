@@ -626,3 +626,19 @@ If it finds a value, it decodes the Base64 string into an InputStream and uses t
 
 This new approach is much more secure and directly supports the ```docker-compose.yml``` file and the Google Cloud Secret Manager strategy you've adopted.
 The code will now work seamlessly in a Docker container, where you can inject the secret directly without having to bundle the file.
+
+## The practice of having a separate deployment service for each part (backend, mobile, etc.) is actually considered a good practice.
+- It is the recommended approach for monorepos, especially in environments like Render.
+
+## Why is it a good practice?
+- Independence: Each service is autonomous. A change in the backend doesn’t force a deployment of the mobile part unless 
+  there's a direct interdependency. This speeds up the build and deploy process for each component.
+- Efficiency: Render (and similar services) can optimize the build process. Instead of rebuilding the entire repository, 
+  it only focuses on the code that changed within the specified root directory. This saves time and resources.
+- Specific Environments: Each service can have its own configurations, such as environment variables, dependencies, and 
+  resource requirements. 
+
+  For example, the Java backend might need a database, while your mobile app might be a static site. 
+  Keeping them separate allows you to manage each one with its own setup.
+- Scalability: If your backend starts receiving a lot of traffic, you can scale it independently of the mobile part. 
+  This optimizes cost and performance, as you're not paying for resources you don't need on the other side.

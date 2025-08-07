@@ -5,6 +5,7 @@ com/supershopcart/controllers/AuthControllerTest.class
 com/supershopcart/services/FirestoreServiceTest$SaveShopCartTests.class
 com/supershopcart/services/FirestoreServiceTest.class
 com/supershopcart/services/JwtTokenServiceTest.class
+com/supershopcart/SuperShopperCartApplicationTest.class
 com/supershopcart/services/FirestoreServiceTest$SaveShopperSuccessTests.class
 com/supershopcart/services/FirestoreServiceTest$GetShopCartsByShopperIdTests.class
 com/supershopcart/services/ShopCartServiceTest.class
@@ -24,4 +25,3 @@ com/supershopcart/services/FirestoreServiceIntegrationTest.class
 com/supershopcart/models/ShopCartTest.class
 com/supershopcart/services/ShopperServiceTest.class
 com/supershopcart/controllers/AdminControllerTest.class
-com/supershopcart/SupershopcartApplicationTests.class

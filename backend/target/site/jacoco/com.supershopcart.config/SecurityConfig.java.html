@@ -8,6 +8,12 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 // Production Security Configuration
 @Configuration
@@ -16,21 +22,39 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-<span class="fc" id="L19">    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {</span>
-<span class="fc" id="L20">        this.jwtAuthFilter = jwtAuthFilter;</span>
-<span class="fc" id="L21">    }</span>
+<span class="fc" id="L25">    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {</span>
+<span class="fc" id="L26">        this.jwtAuthFilter = jwtAuthFilter;</span>
+<span class="fc" id="L27">    }</span>
 
     @Bean
     public SecurityFilterChain productionSecurityFilterChain(HttpSecurity http) throws Exception {
-<span class="fc" id="L25">        http</span>
-<span class="fc" id="L26">                .csrf(csrf -&gt; csrf.disable())</span>
-<span class="fc" id="L27">                .authorizeHttpRequests(auth -&gt; auth</span>
-<span class="fc" id="L28">                        .requestMatchers(&quot;/api/auth/**&quot;, &quot;/api/public/**&quot;).permitAll()</span>
-<span class="fc" id="L29">                        .anyRequest().authenticated())</span>
-<span class="fc" id="L30">                .sessionManagement(session -&gt; session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
-<span class="fc" id="L31">                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);</span>
+<span class="fc" id="L31">        http</span>
+<span class="fc" id="L32">                .csrf(csrf -&gt; csrf.disable())</span>
+<span class="fc" id="L33">                .authorizeHttpRequests(auth -&gt; auth</span>
+<span class="fc" id="L34">                        .requestMatchers(&quot;/api/auth/**&quot;, &quot;/api/public/**&quot;, &quot;/swagger-ui.html&quot;,</span>
+                                &quot;/swagger-ui/**&quot;,
+<span class="fc" id="L36">                                &quot;/v3/api-docs/**&quot;).permitAll()</span>
+<span class="fc" id="L37">                        .anyRequest().authenticated())</span>
+<span class="fc" id="L38">                .sessionManagement(session -&gt; session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
+<span class="fc" id="L39">                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);</span>
 
-<span class="fc" id="L33">        return http.build();</span>
+<span class="fc" id="L41">        return http.build();</span>
+    }
+
+    // Define the CORS configuration source bean
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+<span class="fc" id="L47">        CorsConfiguration configuration = new CorsConfiguration();</span>
+
+        // This is a simple configuration. In production, you should restrict origins.
+<span class="fc" id="L50">        configuration.setAllowedOrigins(Collections.singletonList(&quot;*&quot;));</span>
+<span class="fc" id="L51">        configuration.setAllowedMethods(Arrays.asList(&quot;GET&quot;, &quot;POST&quot;, &quot;PUT&quot;, &quot;DELETE&quot;, &quot;OPTIONS&quot;, &quot;HEAD&quot;));</span>
+<span class="fc" id="L52">        configuration.setAllowedHeaders(Arrays.asList(&quot;Authorization&quot;, &quot;Cache-Control&quot;, &quot;Content-Type&quot;));</span>
+<span class="fc" id="L53">        configuration.setAllowCredentials(true);</span>
+
+<span class="fc" id="L55">        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();</span>
+<span class="fc" id="L56">        source.registerCorsConfiguration(&quot;/**&quot;, configuration);</span>
+<span class="fc" id="L57">        return source;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

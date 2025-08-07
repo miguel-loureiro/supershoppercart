@@ -2,35 +2,36 @@
 
 import com.supershopcart.enums.ShopCartState;
 import com.supershopcart.models.ShopCart;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.Date;
 import java.util.List;
 
 public class ShopCartSummaryDTO {
-    private String identifier;
-    private String dateKey;
-    private int itemCount;
-    private int purchasedCount;
+    @NotBlank private String identifier;
+    @NotBlank private String dateKey;
+    @NotBlank private int itemCount;
+    @NotBlank private int purchasedCount;
     private List&lt;String&gt; shopperIds;
-    private String createdBy;
-    private ShopCartState state;
-    private Date createdAt;
+    @NotBlank private String createdBy;
+    @NotBlank private ShopCartState state;
+    @NotBlank private Date createdAt;
     private Date lastModified;
-    private boolean isTemplate;
+    @NotBlank private boolean isTemplate;
     private String templateName;
 
-<span class="fc" id="L22">    public ShopCartSummaryDTO(ShopCart shopCart) {</span>
-<span class="fc" id="L23">        this.identifier = shopCart.getId();</span>
-<span class="fc" id="L24">        this.dateKey = shopCart.getDateKey();</span>
-<span class="fc" id="L25">        this.itemCount = shopCart.getItems().size();</span>
-<span class="fc bfc" id="L26" title="All 2 branches covered.">        this.purchasedCount = (int) shopCart.getItems().stream().mapToLong(item -&gt; item.isPurchased() ? 1 : 0).sum();</span>
-<span class="fc" id="L27">        this.shopperIds = shopCart.getShopperIds();</span>
-<span class="fc" id="L28">        this.createdBy = shopCart.getCreatedBy();</span>
-<span class="fc" id="L29">        this.state = shopCart.getState();</span>
-<span class="fc" id="L30">        this.createdAt = shopCart.getCreatedAt();</span>
-<span class="fc" id="L31">        this.lastModified = shopCart.getLastModified();</span>
-<span class="fc" id="L32">        this.isTemplate = shopCart.isTemplate();</span>
-<span class="fc" id="L33">        this.templateName = shopCart.getTemplateName();</span>
-<span class="fc" id="L34">    }</span>
+<span class="fc" id="L23">    public ShopCartSummaryDTO(ShopCart shopCart) {</span>
+<span class="fc" id="L24">        this.identifier = shopCart.getId();</span>
+<span class="fc" id="L25">        this.dateKey = shopCart.getDateKey();</span>
+<span class="fc" id="L26">        this.itemCount = shopCart.getItems().size();</span>
+<span class="fc bfc" id="L27" title="All 2 branches covered.">        this.purchasedCount = (int) shopCart.getItems().stream().mapToLong(item -&gt; item.isPurchased() ? 1 : 0).sum();</span>
+<span class="fc" id="L28">        this.shopperIds = shopCart.getShopperIds();</span>
+<span class="fc" id="L29">        this.createdBy = shopCart.getCreatedBy();</span>
+<span class="fc" id="L30">        this.state = shopCart.getState();</span>
+<span class="fc" id="L31">        this.createdAt = shopCart.getCreatedAt();</span>
+<span class="fc" id="L32">        this.lastModified = shopCart.getLastModified();</span>
+<span class="fc" id="L33">        this.isTemplate = shopCart.isTemplate();</span>
+<span class="fc" id="L34">        this.templateName = shopCart.getTemplateName();</span>
+<span class="fc" id="L35">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

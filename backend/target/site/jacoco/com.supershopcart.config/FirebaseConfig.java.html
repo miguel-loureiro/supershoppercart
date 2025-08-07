@@ -14,8 +14,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
@@ -23,243 +26,157 @@ import java.util.Map;
 @Configuration
 public class FirebaseConfig {
 
-<span class="fc" id="L26">    private static final Logger logger = LoggerFactory.getLogger(FirebaseConfig.class);</span>
+<span class="fc" id="L29">    private static final Logger logger = LoggerFactory.getLogger(FirebaseConfig.class);</span>
 
     // --- Emulator Configuration Properties ---
-    @Value(&quot;${firebase.project.id.emulator:fir-supershopcart-test}&quot;)  // Updated to match your firebase.json
+    @Value(&quot;${firebase.project.id.emulator:fir-supershopcart-test}&quot;)
     private String emulatorProjectIdProp;
 
-    @Value(&quot;${firebase.emulator.host:localhost:8081}&quot;)  // Added property for emulator host
+    @Value(&quot;${firebase.emulator.host:localhost:8081}&quot;)
     private String emulatorHostProp;
 
     // --- Production Configuration Properties ---
-    @Value(&quot;${firebase.project.id.production:supershopcart-prod}&quot;)
+    @Value(&quot;${firebase.project.id:supershoppercart}&quot;)
     private String productionProjectIdProp;
 
+    // This property is for a local dev setup where the key might still be on the classpath.
+    // In production, we prefer the environment variable below.
     @Value(&quot;${firebase.service.account.path:classpath:firebase-service-account-prod.json}&quot;)
     private String serviceAccountPathProp;
 
+    // --- New Environment Variable for Production Secret ---
+    @Value(&quot;${FIREBASE_SERVICE_ACCOUNT_B64:}&quot;)
+    private String serviceAccountB64;
+
     private final ResourceLoader resourceLoader;
 
-<span class="fc" id="L44">    public FirebaseConfig(ResourceLoader resourceLoader) {</span>
-<span class="fc" id="L45">        this.resourceLoader = resourceLoader;</span>
-<span class="fc" id="L46">    }</span>
+<span class="fc" id="L53">    public FirebaseConfig(ResourceLoader resourceLoader) {</span>
+<span class="fc" id="L54">        this.resourceLoader = resourceLoader;</span>
+<span class="fc" id="L55">    }</span>
 
     // Custom NoCredentials class for emulator connection (same as your working test)
     static class NoCredentials extends GoogleCredentials {
-<span class="fc" id="L50">        private static final NoCredentials INSTANCE = new NoCredentials();</span>
+<span class="fc" id="L59">        private static final NoCredentials INSTANCE = new NoCredentials();</span>
 
         private NoCredentials() {
         }
 
         public static NoCredentials getInstance() {
-<span class="fc" id="L56">            return INSTANCE;</span>
+<span class="fc" id="L65">            return INSTANCE;</span>
         }
 
         @Override
         public AccessToken refreshAccessToken() throws IOException {
-<span class="nc" id="L61">            return new AccessToken(&quot;dummy-token&quot;, new Date(Long.MAX_VALUE));</span>
+<span class="nc" id="L70">            return new AccessToken(&quot;dummy-token&quot;, new Date(Long.MAX_VALUE));</span>
         }
     }
 
     /**
      * Configures and provides a Firestore client bean for the local emulator.
      * This bean is active only when the &quot;dev-emulator&quot; Spring profile is active.
-     * Uses both environment variable and properties file configuration with fallback logic.
      */
     @Bean
     @Profile(&quot;dev-emulator&quot;)
     public Firestore firestoreEmulator() {
-<span class="fc" id="L73">        logger.info(&quot;🚀 Configuring Firestore for 'dev-emulator' profile using working test approach...&quot;);</span>
+<span class="fc" id="L81">        logger.info(&quot;🚀 Configuring Firestore for 'dev-emulator' profile...&quot;);</span>
 
-<span class="fc" id="L75">        String projectId = emulatorProjectIdProp; // Use the configured project ID for the emulator</span>
-
-        // Check both environment variable and properties file
-<span class="fc" id="L78">        String envEmulatorHost = System.getenv(&quot;FIRESTORE_EMULATOR_HOST&quot;);</span>
+<span class="fc" id="L83">        String projectId = emulatorProjectIdProp;</span>
+<span class="fc" id="L84">        String envEmulatorHost = System.getenv(&quot;FIRESTORE_EMULATOR_HOST&quot;);</span>
         String finalEmulatorHost;
 
         // Prefer environment variable if set, otherwise use property
-<span class="pc bpc" id="L82" title="3 of 4 branches missed.">        if (envEmulatorHost != null &amp;&amp; !envEmulatorHost.isBlank()) {</span>
-<span class="nc" id="L83">            finalEmulatorHost = envEmulatorHost;</span>
-<span class="nc" id="L84">            logger.info(&quot;DEBUG: Using FIRESTORE_EMULATOR_HOST environment variable: '{}'&quot;, envEmulatorHost);</span>
+<span class="pc bpc" id="L88" title="3 of 4 branches missed.">        if (envEmulatorHost != null &amp;&amp; !envEmulatorHost.isBlank()) {</span>
+<span class="nc" id="L89">            finalEmulatorHost = envEmulatorHost;</span>
+<span class="nc" id="L90">            logger.info(&quot;Using FIRESTORE_EMULATOR_HOST environment variable: '{}'&quot;, envEmulatorHost);</span>
         } else {
-<span class="fc" id="L86">            finalEmulatorHost = emulatorHostProp;</span>
-<span class="fc" id="L87">            logger.info(&quot;DEBUG: Using firebase.emulator.host property: '{}'&quot;, emulatorHostProp);</span>
+<span class="fc" id="L92">            finalEmulatorHost = emulatorHostProp;</span>
+<span class="fc" id="L93">            logger.info(&quot;Using firebase.emulator.host property: '{}'&quot;, emulatorHostProp);</span>
         }
 
-<span class="fc" id="L90">        logger.info(&quot;DEBUG: Project ID for emulator: '{}'&quot;, projectId);</span>
-<span class="fc" id="L91">        logger.info(&quot;DEBUG: Final emulator host: '{}'&quot;, finalEmulatorHost);</span>
+<span class="fc" id="L96">        logger.info(&quot;Project ID for emulator: '{}'&quot;, projectId);</span>
+<span class="fc" id="L97">        logger.info(&quot;Final emulator host: '{}'&quot;, finalEmulatorHost);</span>
 
         try {
-            // Test direct connection first (like your working test)
-<span class="fc" id="L95">            logger.info(&quot;Testing direct Firestore emulator connection...&quot;);</span>
-<span class="fc" id="L96">            testDirectFirestoreConnection(finalEmulatorHost, projectId);</span>
-
-            // Initialize FirebaseApp for the emulator scenario (optional but good practice)
-<span class="fc bfc" id="L99" title="All 2 branches covered.">            if (FirebaseApp.getApps().isEmpty()) {</span>
-<span class="fc" id="L100">                FirebaseOptions options = FirebaseOptions.builder()</span>
-<span class="fc" id="L101">                        .setCredentials(NoCredentials.getInstance()) // Use NoCredentials for emulator</span>
-<span class="fc" id="L102">                        .setProjectId(projectId)</span>
-<span class="fc" id="L103">                        .build();</span>
-<span class="fc" id="L104">                FirebaseApp.initializeApp(options);</span>
-<span class="fc" id="L105">                logger.info(&quot;FirebaseApp initialized for emulator context.&quot;);</span>
-<span class="fc" id="L106">            } else {</span>
-<span class="fc" id="L107">                logger.info(&quot;FirebaseApp already initialized for emulator context.&quot;);</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            if (FirebaseApp.getApps().isEmpty()) {</span>
+<span class="fc" id="L101">                FirebaseOptions options = FirebaseOptions.builder()</span>
+<span class="fc" id="L102">                        .setCredentials(NoCredentials.getInstance())</span>
+<span class="fc" id="L103">                        .setProjectId(projectId)</span>
+<span class="fc" id="L104">                        .build();</span>
+<span class="fc" id="L105">                FirebaseApp.initializeApp(options);</span>
             }
 
-            // Create the Firestore client using the EXACT same approach as your working test
-<span class="fc" id="L111">            FirestoreOptions firestoreOptions = FirestoreOptions.newBuilder()</span>
-<span class="fc" id="L112">                    .setProjectId(projectId)</span>
-<span class="fc" id="L113">                    .setEmulatorHost(finalEmulatorHost) // This will connect to Docker container via localhost:8081</span>
-<span class="fc" id="L114">                    .setCredentials(NoCredentials.getInstance()) // Use dummy credentials</span>
-<span class="fc" id="L115">                    .build();</span>
+<span class="fc" id="L108">            FirestoreOptions firestoreOptions = FirestoreOptions.newBuilder()</span>
+<span class="fc" id="L109">                    .setProjectId(projectId)</span>
+<span class="fc" id="L110">                    .setEmulatorHost(finalEmulatorHost)</span>
+<span class="fc" id="L111">                    .setCredentials(NoCredentials.getInstance())</span>
+<span class="fc" id="L112">                    .build();</span>
 
-<span class="fc" id="L117">            Firestore firestore = firestoreOptions.getService();</span>
-
-            // Log configuration details
-<span class="fc" id="L120">            logger.info(&quot;✅ Firestore client initialized for EMULATOR using working test approach:&quot;);</span>
-<span class="fc" id="L121">            logger.info(&quot;  - Project ID: {}&quot;, firestoreOptions.getProjectId());</span>
-<span class="fc" id="L122">            logger.info(&quot;  - Displayed Host: {}&quot;, firestoreOptions.getHost()); // May still show googleapis.com</span>
-<span class="fc" id="L123">            logger.info(&quot;  - Emulator Host Setting: {}&quot;, firestoreOptions.getEmulatorHost());</span>
-<span class="fc" id="L124">            logger.info(&quot;  - Actual connection will be to: {} (insecure)&quot;, finalEmulatorHost);</span>
-
-            // Note: The displayed host might still show firestore.googleapis.com:443
-            // This is a known informational display issue, not a connection issue
-<span class="fc" id="L128">            logger.info(&quot;Note: If 'Displayed Host' shows 'firestore.googleapis.com:443', this is normal.&quot;);</span>
-<span class="fc" id="L129">            logger.info(&quot;The actual connection is directed to the emulator at {}&quot;, finalEmulatorHost);</span>
-
-<span class="fc" id="L131">            return firestore;</span>
-
-<span class="fc" id="L133">        } catch (Exception e) {</span>
-<span class="fc" id="L134">            logger.error(&quot;❌ Failed to configure Firestore client for emulator. ProjectId: '{}'. Error: {}&quot;,</span>
-<span class="fc" id="L135">                    projectId, e.getMessage(), e);</span>
-<span class="fc" id="L136">            throw new IllegalStateException(&quot;Could not create Firestore client for emulator - &quot; + e.getMessage(), e);</span>
+<span class="fc" id="L114">            return firestoreOptions.getService();</span>
+<span class="fc" id="L115">        } catch (Exception e) {</span>
+<span class="fc" id="L116">            logger.error(&quot;❌ Failed to configure Firestore client for emulator. ProjectId: '{}'. Error: {}&quot;,</span>
+<span class="fc" id="L117">                    projectId, e.getMessage(), e);</span>
+<span class="fc" id="L118">            throw new IllegalStateException(&quot;Could not create Firestore client for emulator - &quot; + e.getMessage(), e);</span>
         }
     }
-
-    /**
-     * Test direct Firestore connection using the same approach as your working MinimalFirestoreEmulatorTest
-     */
-    private void testDirectFirestoreConnection(String emulatorHost, String projectId) {
-<span class="fc" id="L144">        Firestore firestore = null;</span>
-        try {
-<span class="fc" id="L146">            FirestoreOptions options = FirestoreOptions.newBuilder()</span>
-<span class="fc" id="L147">                    .setProjectId(projectId)</span>
-<span class="fc" id="L148">                    .setEmulatorHost(emulatorHost)</span>
-<span class="fc" id="L149">                    .setCredentials(NoCredentials.getInstance())</span>
-<span class="fc" id="L150">                    .build();</span>
-
-<span class="fc" id="L152">            firestore = options.getService();</span>
-<span class="fc" id="L153">            logger.info(&quot;Direct connection test - Options created:&quot;);</span>
-<span class="fc" id="L154">            logger.info(&quot;  - Project ID: {}&quot;, options.getProjectId());</span>
-<span class="fc" id="L155">            logger.info(&quot;  - Emulator Host Setting: {}&quot;, options.getEmulatorHost());</span>
-
-            // Test write operation (same as your working test)
-<span class="fc" id="L158">            DocumentReference docRef = firestore.collection(&quot;config-test&quot;).document(&quot;connection-verification&quot;);</span>
-<span class="fc" id="L159">            Map&lt;String, Object&gt; testData = Collections.singletonMap(&quot;timestamp&quot;, System.currentTimeMillis());</span>
-
-<span class="fc" id="L161">            logger.info(&quot;Testing write to emulator...&quot;);</span>
-<span class="fc" id="L162">            ApiFuture&lt;WriteResult&gt; writeResult = docRef.set(testData);</span>
-<span class="fc" id="L163">            WriteResult result = writeResult.get();</span>
-<span class="fc" id="L164">            logger.info(&quot;✅ CONFIG TEST WRITE SUCCESSFUL! Update time: {}&quot;, result.getUpdateTime());</span>
-
-            // Test read operation
-<span class="fc" id="L167">            ApiFuture&lt;DocumentSnapshot&gt; readResult = docRef.get();</span>
-<span class="fc" id="L168">            DocumentSnapshot document = readResult.get();</span>
-
-<span class="pc bpc" id="L170" title="1 of 2 branches missed.">            if (document.exists()) {</span>
-<span class="fc" id="L171">                logger.info(&quot;✅ CONFIG TEST READ SUCCESSFUL! Data: {}&quot;, document.getData());</span>
-<span class="fc" id="L172">                logger.info(&quot;🎉 Direct Firestore emulator connection is working in FirebaseConfig!&quot;);</span>
-            } else {
-<span class="nc" id="L174">                logger.warn(&quot;❌ Document not found after writing in config test&quot;);</span>
-            }
-
-<span class="fc" id="L177">        } catch (Exception e) {</span>
-<span class="fc" id="L178">            logger.error(&quot;❌ CONFIG CONNECTION TEST FAILED: {}&quot;, e.getMessage());</span>
-
-<span class="pc bpc" id="L180" title="1 of 2 branches missed.">            if (e.getMessage().contains(&quot;UNAVAILABLE&quot;) ||</span>
-<span class="pc bpc" id="L181" title="1 of 2 branches missed.">                    e.getMessage().contains(&quot;Connection refused&quot;) ||</span>
-<span class="nc bnc" id="L182" title="All 2 branches missed.">                    e.getMessage().contains(&quot;Failed to connect&quot;)) {</span>
-<span class="fc" id="L183">                logger.error(&quot;💡 This suggests:&quot;);</span>
-<span class="fc" id="L184">                logger.error(&quot;1. Firestore Emulator is NOT RUNNING on {}&quot;, emulatorHost);</span>
-<span class="fc" id="L185">                logger.error(&quot;   - Make sure you run Docker container with Firestore emulator.&quot;);</span>
-<span class="fc" id="L186">                logger.error(&quot;   - Ensure port mapping: docker run -p 8081:8081 &lt;emulator-image&gt;&quot;);</span>
-<span class="fc" id="L187">                logger.error(&quot;2. Firewall is blocking the connection to {}&quot;, emulatorHost);</span>
-<span class="fc" id="L188">                logger.error(&quot;3. Check firebase.json has host: '0.0.0.0' for Docker accessibility&quot;);</span>
-<span class="nc bnc" id="L189" title="All 2 branches missed.">            } else if (e.getMessage().contains(&quot;PERMISSION_DENIED&quot;) ||</span>
-<span class="nc bnc" id="L190" title="All 2 branches missed.">                    e.getMessage().contains(&quot;UNAUTHENTICATED&quot;)) {</span>
-<span class="nc" id="L191">                logger.error(&quot;💡 This error can appear if accidentally connecting to PRODUCTION Firestore.&quot;);</span>
-<span class="nc" id="L192">                logger.error(&quot;   - Double-check FirestoreOptions and setEmulatorHost configuration.&quot;);</span>
-<span class="nc bnc" id="L193" title="All 2 branches missed.">            } else if (e.getMessage().contains(&quot;http2 exception&quot;)) {</span>
-<span class="nc" id="L194">                logger.error(&quot;💡 This 'http2 exception' often means:&quot;);</span>
-<span class="nc" id="L195">                logger.error(&quot;   - Client trying to use TLS/SSL but emulator expects plain HTTP.&quot;);</span>
-<span class="nc" id="L196">                logger.error(&quot;   - Ensure FirestoreOptions.setEmulatorHost() is used correctly.&quot;);</span>
-            }
-
-<span class="fc" id="L199">            throw new RuntimeException(&quot;Failed to verify emulator connection in FirebaseConfig&quot;, e);</span>
-        } finally {
-<span class="pc bpc" id="L201" title="1 of 2 branches missed.">            if (firestore != null) {</span>
-                try {
-<span class="fc" id="L203">                    firestore.close();</span>
-<span class="nc" id="L204">                } catch (Exception e) {</span>
-<span class="nc" id="L205">                    logger.error(&quot;Error closing config connection test: {}&quot;, e.getMessage());</span>
-<span class="fc" id="L206">                }</span>
-            }
-        }
-<span class="fc" id="L209">    }</span>
 
     /**
      * Configures and provides a Firestore client bean for the production environment.
      * This bean is active when the &quot;dev-emulator&quot; Spring profile is NOT active.
      */
     @Bean
-    @Profile(&quot;!dev-emulator&quot;) // Active when dev-emulator profile is NOT active
+    @Profile(&quot;!dev-emulator&quot;)
     public Firestore firestoreProduction() throws IOException {
-<span class="fc" id="L218">        logger.info(&quot;🚀 Configuring Firestore for PRODUCTION profile...&quot;);</span>
+<span class="fc" id="L129">        logger.info(&quot;🚀 Configuring Firestore for PRODUCTION profile...&quot;);</span>
 
         // Ensure FIRESTORE_EMULATOR_HOST environment variable is NOT set for production
-<span class="fc" id="L221">        String envEmulatorHost = System.getenv(&quot;FIRESTORE_EMULATOR_HOST&quot;);</span>
-<span class="pc bpc" id="L222" title="3 of 4 branches missed.">        if (envEmulatorHost != null &amp;&amp; !envEmulatorHost.isBlank()) {</span>
-<span class="nc" id="L223">            logger.warn(&quot;WARNING: FIRESTORE_EMULATOR_HOST environment variable is set to '{}' in production profile. &quot; +</span>
+<span class="fc" id="L132">        String envEmulatorHost = System.getenv(&quot;FIRESTORE_EMULATOR_HOST&quot;);</span>
+<span class="pc bpc" id="L133" title="3 of 4 branches missed.">        if (envEmulatorHost != null &amp;&amp; !envEmulatorHost.isBlank()) {</span>
+<span class="nc" id="L134">            logger.warn(&quot;WARNING: FIRESTORE_EMULATOR_HOST environment variable is set to '{}' in production profile. &quot; +</span>
                     &quot;This could cause unintended connections to an emulator. Please unset it for production.&quot;, envEmulatorHost);
         }
 
-<span class="fc" id="L227">        logger.info(&quot;DEBUG: Production Project ID from @Value: '{}'&quot;, productionProjectIdProp);</span>
-<span class="fc" id="L228">        logger.info(&quot;DEBUG: Service Account Path from @Value: '{}'&quot;, serviceAccountPathProp);</span>
-
-        // Ensure FirebaseApp is initialized only once for the production setup
-<span class="fc bfc" id="L231" title="All 2 branches covered.">        if (FirebaseApp.getApps().isEmpty()) {</span>
-<span class="fc" id="L232">            Resource resource = resourceLoader.getResource(serviceAccountPathProp);</span>
-<span class="fc bfc" id="L233" title="All 2 branches covered.">            if (!resource.exists()) {</span>
-<span class="fc" id="L234">                logger.error(&quot;CRITICAL ERROR: Firebase service account file not found at: '{}'&quot;, serviceAccountPathProp);</span>
-<span class="fc" id="L235">                throw new IOException(&quot;Firebase service account file not found at: &quot; + serviceAccountPathProp);</span>
+        // Initialize credentials based on the environment variable first.
+        GoogleCredentials credentials;
+        try {
+<span class="pc bpc" id="L141" title="1 of 4 branches missed.">            if (serviceAccountB64 != null &amp;&amp; !serviceAccountB64.isBlank()) {</span>
+<span class="fc" id="L142">                logger.info(&quot;Using service account key from FIREBASE_SERVICE_ACCOUNT_B64 environment variable.&quot;);</span>
+<span class="fc" id="L143">                byte[] decodedBytes = Base64.getDecoder().decode(serviceAccountB64);</span>
+<span class="fc" id="L144">                credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(decodedBytes));</span>
+<span class="fc" id="L145">            } else {</span>
+<span class="fc" id="L146">                logger.warn(&quot;FIREBASE_SERVICE_ACCOUNT_B64 not found. Falling back to service account file path: '{}'&quot;, serviceAccountPathProp);</span>
+<span class="fc" id="L147">                Resource resource = resourceLoader.getResource(serviceAccountPathProp);</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                if (!resource.exists()) {</span>
+<span class="fc" id="L149">                    logger.error(&quot;CRITICAL ERROR: Firebase service account file not found at: '{}'&quot;, serviceAccountPathProp);</span>
+<span class="fc" id="L150">                    throw new IOException(&quot;Firebase service account file not found at: &quot; + serviceAccountPathProp);</span>
+                }
+<span class="fc" id="L152">                credentials = GoogleCredentials.fromStream(resource.getInputStream());</span>
             }
 
-<span class="fc" id="L238">            try (InputStream serviceAccount = resource.getInputStream()) {</span>
-<span class="fc" id="L239">                FirebaseOptions options = FirebaseOptions.builder()</span>
-<span class="fc" id="L240">                        .setCredentials(GoogleCredentials.fromStream(serviceAccount))</span>
-<span class="fc" id="L241">                        .setProjectId(productionProjectIdProp)</span>
-<span class="fc" id="L242">                        .build();</span>
-<span class="fc" id="L243">                FirebaseApp.initializeApp(options);</span>
-<span class="fc" id="L244">                logger.info(&quot;FirebaseApp initialized for production environment.&quot;);</span>
-<span class="fc" id="L245">            } catch (IOException e) {</span>
-<span class="fc" id="L246">                logger.error(&quot;CRITICAL ERROR: Error initializing FirebaseApp for production: {}&quot;, e.getMessage(), e);</span>
-<span class="fc" id="L247">                throw e;</span>
-<span class="fc" id="L248">            }</span>
-<span class="fc" id="L249">        } else {</span>
-<span class="fc" id="L250">            logger.info(&quot;FirebaseApp already initialized for production.&quot;);</span>
+            // Initialize FirebaseApp only once
+<span class="fc bfc" id="L156" title="All 2 branches covered.">            if (FirebaseApp.getApps().isEmpty()) {</span>
+<span class="fc" id="L157">                FirebaseOptions options = FirebaseOptions.builder()</span>
+<span class="fc" id="L158">                        .setCredentials(credentials)</span>
+<span class="fc" id="L159">                        .setProjectId(productionProjectIdProp)</span>
+<span class="fc" id="L160">                        .build();</span>
+<span class="fc" id="L161">                FirebaseApp.initializeApp(options);</span>
+<span class="fc" id="L162">                logger.info(&quot;FirebaseApp initialized for production environment.&quot;);</span>
+<span class="fc" id="L163">            } else {</span>
+<span class="fc" id="L164">                logger.info(&quot;FirebaseApp already initialized for production.&quot;);</span>
+            }
+
+            // Create and return Firestore instance
+<span class="fc" id="L168">            Firestore firestore = FirestoreOptions.newBuilder()</span>
+<span class="fc" id="L169">                    .setProjectId(productionProjectIdProp)</span>
+<span class="fc" id="L170">                    .setCredentials(credentials)</span>
+<span class="fc" id="L171">                    .build().getService();</span>
+
+<span class="fc" id="L173">            logger.info(&quot;✅ Firestore client initialized for PRODUCTION. Host: '{}', Project ID: '{}'&quot;,</span>
+<span class="fc" id="L174">                    firestore.getOptions().getHost(), firestore.getOptions().getProjectId());</span>
+<span class="fc" id="L175">            return firestore;</span>
+<span class="fc" id="L176">        } catch (IOException e) {</span>
+<span class="fc" id="L177">            logger.error(&quot;CRITICAL ERROR: Error initializing FirebaseApp for production: {}&quot;, e.getMessage(), e);</span>
+<span class="fc" id="L178">            throw e;</span>
         }
-
-        // Return Firestore instance for production
-<span class="fc" id="L254">        FirestoreOptions.Builder optionsBuilder = FirestoreOptions.newBuilder();</span>
-<span class="fc" id="L255">        optionsBuilder.setProjectId(productionProjectIdProp);</span>
-
-<span class="fc" id="L257">        FirestoreOptions options = optionsBuilder.build();</span>
-<span class="fc" id="L258">        Firestore firestore = options.getService();</span>
-
-<span class="fc" id="L260">        logger.info(&quot;✅ Firestore client initialized for PRODUCTION. Host: '{}', Project ID: '{}'&quot;,</span>
-<span class="fc" id="L261">                options.getHost(), options.getProjectId());</span>
-<span class="fc" id="L262">        return firestore;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
