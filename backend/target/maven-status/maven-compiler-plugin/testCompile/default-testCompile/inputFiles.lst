@@ -2,6 +2,7 @@
 /Users/miguelloureiro/repos/supershoppercart/backend/src/test/java/com/supershopcart/config/FirebaseConfigTest.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/test/java/com/supershopcart/controllers/AdminControllerTest.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/test/java/com/supershopcart/controllers/AuthControllerTest.java
+/Users/miguelloureiro/repos/supershoppercart/backend/src/test/java/com/supershopcart/controllers/HomeControllerTest.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/test/java/com/supershopcart/controllers/ShopCartControllerTest.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/test/java/com/supershopcart/dtos/ShareCartRequestDTOTest.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/test/java/com/supershopcart/dtos/ShopCartDetailDTOTest.java

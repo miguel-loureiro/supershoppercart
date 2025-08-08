@@ -3,6 +3,7 @@
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershopcart/config/SecurityConfig.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershopcart/controllers/AdminController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershopcart/controllers/AuthController.java
+/Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershopcart/controllers/HomeController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershopcart/controllers/ShopCartController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershopcart/dtos/ShareCartRequestDTO.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershopcart/dtos/ShopCartDetailDTO.java

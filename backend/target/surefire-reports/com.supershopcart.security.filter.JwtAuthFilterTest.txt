@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.supershopcart.security.filter.JwtAuthFilterTest
 -------------------------------------------------------------------------------
-Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.173 s -- in com.supershopcart.security.filter.JwtAuthFilterTest
+Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.155 s -- in com.supershopcart.security.filter.JwtAuthFilterTest
