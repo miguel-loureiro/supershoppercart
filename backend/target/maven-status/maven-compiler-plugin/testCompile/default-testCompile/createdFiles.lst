@@ -6,6 +6,7 @@ com/supershopcart/services/FirestoreServiceTest$SaveShopCartTests.class
 com/supershopcart/services/FirestoreServiceTest.class
 com/supershopcart/services/JwtTokenServiceTest.class
 com/supershopcart/SuperShopperCartApplicationTest.class
+com/supershopcart/controllers/HomeControllerTest.class
 com/supershopcart/services/FirestoreServiceTest$SaveShopperSuccessTests.class
 com/supershopcart/services/FirestoreServiceTest$GetShopCartsByShopperIdTests.class
 com/supershopcart/services/ShopCartServiceTest.class

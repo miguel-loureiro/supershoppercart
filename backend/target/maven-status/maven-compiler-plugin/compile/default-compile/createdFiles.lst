@@ -1,3 +1,4 @@
+com/supershopcart/controllers/HomeController.class
 com/supershopcart/utils/RefreshTokenCleanupJob.class
 com/supershopcart/models/RefreshToken.class
 com/supershopcart/dtos/ShopCartSummaryDTO.class

@@ -31,7 +31,7 @@ public class SecurityConfig {
 <span class="fc" id="L31">        http</span>
 <span class="fc" id="L32">                .csrf(csrf -&gt; csrf.disable())</span>
 <span class="fc" id="L33">                .authorizeHttpRequests(auth -&gt; auth</span>
-<span class="fc" id="L34">                        .requestMatchers(&quot;/api/auth/**&quot;, &quot;/api/public/**&quot;, &quot;/swagger-ui.html&quot;,</span>
+<span class="fc" id="L34">                        .requestMatchers(&quot;/api/auth/**&quot;, &quot;/api/public/**&quot;, &quot;/&quot;, &quot;/swagger-ui.html&quot;,</span>
                                 &quot;/swagger-ui/**&quot;,
 <span class="fc" id="L36">                                &quot;/v3/api-docs/**&quot;).permitAll()</span>
 <span class="fc" id="L37">                        .anyRequest().authenticated())</span>

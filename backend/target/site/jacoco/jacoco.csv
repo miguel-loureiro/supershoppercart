@@ -8,9 +8,10 @@ supershopcart,com.supershopcart.utils,RefreshTokenCleanupJob,0,57,0,2,0,16,0,4,0
 supershopcart,com.supershopcart.controllers,AdminController,0,123,0,4,0,37,0,8,0,6
 supershopcart,com.supershopcart.controllers,ShopCartController,0,196,0,4,0,37,0,7,0,5
 supershopcart,com.supershopcart.controllers,AuthController,4,366,8,34,1,78,8,18,0,5
+supershopcart,com.supershopcart.controllers,HomeController,0,5,0,0,0,2,0,2,0,2
 supershopcart,com.supershopcart,SuperShopperCartApplication,17,3,0,0,5,1,1,1,1,1
 supershopcart,com.supershopcart.config,FirebaseConfig.NoCredentials,9,7,0,0,1,2,1,2,1,2
-supershopcart,com.supershopcart.config,SecurityConfig,0,130,0,0,0,20,0,6,0,6
+supershopcart,com.supershopcart.config,SecurityConfig,0,134,0,0,0,20,0,6,0,6
 supershopcart,com.supershopcart.config,FirebaseConfig,17,207,7,11,3,61,5,8,0,4
 supershopcart,com.supershopcart.seeder,ShopCartSeeder,36,324,0,0,9,47,0,3,0,3
 supershopcart,com.supershopcart.security.filter,JwtAuthFilter,12,109,0,12,3,33,0,8,0,2
