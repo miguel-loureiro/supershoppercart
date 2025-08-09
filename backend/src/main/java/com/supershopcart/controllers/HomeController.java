@@ -9,16 +9,18 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Home Controller for Super Shopper Cart API
- * Provides health check endpoint
+ * Provides health check endpoints
  */
 @RestController
 public class HomeController {
 
     /**
-     * Health check endpoint that serves an HTML page
+     * Health check endpoint that serves the main HTML page.
      * @return HTML content as ResponseEntity
      * @throws IOException if the HTML file cannot be read
      */
@@ -39,7 +41,6 @@ public class HomeController {
             headers.setContentType(MediaType.TEXT_HTML);
             headers.setPragma("no-cache");
             headers.setCacheControl("no-cache, no-store, must-revalidate");
-            headers.setPragma("no-cache");
             headers.setExpires(0);
 
             return ResponseEntity.ok()
@@ -50,5 +51,17 @@ public class HomeController {
             // Return 500 Internal Server Error if something goes wrong
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    /**
+     * Endpoint for API health check that returns a JSON response.
+     * The HTML page uses this endpoint to check the backend status.
+     * @return JSON object with status information.
+     */
+    @GetMapping(value = "/status", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, String>> statusCheck() {
+        // This simple endpoint just confirms the API is running
+        return ResponseEntity.ok()
+                .body(Collections.singletonMap("status", "OK"));
     }
 }
