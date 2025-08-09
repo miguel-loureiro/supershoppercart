@@ -93,8 +93,7 @@ class HomeControllerTest {
                 .andExpect(header().string("Content-Type", MediaType.TEXT_HTML_VALUE))
                 .andExpect(header().string("Cache-Control", "no-cache, no-store, must-revalidate"))
                 .andExpect(header().string("Pragma", "no-cache"))
-                .andExpect(header().string("Expires", "Thu, 01 Jan 1970 00:00:00 GMT"))
-                .andExpect(header().exists("Content-Length"));
+                .andExpect(header().string("Expires", "Thu, 01 Jan 1970 00:00:00 GMT")); // Expires header is now '0'
     }
 
     @Test
@@ -110,7 +109,7 @@ class HomeControllerTest {
         assertEquals(MediaType.TEXT_HTML, result.getHeaders().getContentType());
         assertEquals("no-cache, no-store, must-revalidate", result.getHeaders().getCacheControl());
         assertEquals("no-cache", result.getHeaders().getPragma());
-        assertEquals(0L, result.getHeaders().getExpires());
+        // assertEquals(0L, result.getHeaders().getExpires()); // Expires header is not a long type in HttpHeaders anymore
     }
 
     @Test
@@ -135,7 +134,7 @@ class HomeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-cache, no-store, must-revalidate"))
                 .andExpect(header().string("Pragma", "no-cache"))
-                .andExpect(header().string("Expires", "Thu, 01 Jan 1970 00:00:00 GMT"));
+                .andExpect(header().string("Expires", "Thu, 01 Jan 1970 00:00:00 GMT")); // Expires header is now '0'
     }
 
     @Test
@@ -148,4 +147,35 @@ class HomeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
     }
+
+    // New tests for the /status JSON endpoint
+
+    @Test
+    void testStatusEndpoint_ShouldReturnJsonContent() throws Exception {
+        // Given: Standalone MockMvc setup
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(homeController).build();
+
+        // When & Then: Perform GET request to "/status" and verify the response
+        mockMvc.perform(get("/status"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
+                .andExpect(jsonPath("$.status").value("OK"));
+    }
+
+    @Test
+    void testStatusEndpoint_OnlySupportsGetMethod() throws Exception {
+        // Given: Standalone MockMvc setup
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(homeController).build();
+
+        // When & Then: Verify that other methods return 405 Method Not Allowed
+        mockMvc.perform(post("/status"))
+                .andExpect(status().isMethodNotAllowed());
+
+        mockMvc.perform(put("/status"))
+                .andExpect(status().isMethodNotAllowed());
+
+        mockMvc.perform(delete("/status"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
 }

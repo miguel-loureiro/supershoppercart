@@ -94,7 +94,8 @@
         const timestamp = document.getElementById('lastChecked');
 
         try {
-            const response = await fetch('/');
+            // Updated to call the new JSON endpoint
+            const response = await fetch('/status');
             const data = await response.json();
 
             if (response.ok && data.status === 'OK') {
