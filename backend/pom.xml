@@ -22,10 +22,10 @@
     </licenses>
     <developers>
         <developer>
-            <name>Your Name</name>
-            <email>your.email@example.com</email>
-            <organization>Your Organization</organization>
-            <organizationUrl>http://www.example.com/organizationUrl</organizationUrl>
+            <name>Miguel Loureiro</name>
+            <email>publixoapagar@gmail.com</email>
+            <organization>migge</organization>
+            <organizationUrl>http://www.migge.com</organizationUrl>
         </developer>
     </developers>
     <scm>
@@ -41,6 +41,9 @@
         <google.cloud.libraries.bom.version>26.64.0</google.cloud.libraries.bom.version>
         <lombok.version>1.18.32</lombok.version>
         <jacoco.version>0.8.12</jacoco.version>
+        <!-- Added properties for code quality plugins -->
+        <checkstyle.version>10.17.0</checkstyle.version>
+        <pmd.version>3.25.0</pmd.version>
     </properties>
 
     <dependencyManagement>
@@ -182,6 +185,50 @@
 
     <build>
         <plugins>
+            <!-- Checkstyle Plugin to enforce coding standards -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <!-- Using the default checkstyle rules from the JAR -->
+                    <configLocation>google_checks.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>true</failsOnError>
+                    <linkXRef>false</linkXRef>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- PMD Plugin to find common code bugs -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>${pmd.version}</version>
+                <configuration>
+                    <printFailingErrors>true</printFailingErrors>
+                    <rulesets>
+                        <ruleset>/category/java/errorprone.xml</ruleset>
+                        <ruleset>/category/java/bestpractices.xml</ruleset>
+                    </rulesets>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
