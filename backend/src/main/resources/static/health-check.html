@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SuperShopperCart API - Status</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: "Segoe UI", Arial, sans-serif;
             min-height: 100vh;
@@ -35,24 +39,21 @@
             margin-bottom: 15px;
             color: #1a1a1a;
         }
-        .status-text {
+        .status-card .status-text {
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.1rem;
             font-weight: 500;
+            color: #28a745;
         }
         .status-dot {
             width: 12px;
             height: 12px;
+            background: #28a745;
             border-radius: 50%;
             margin-right: 8px;
             animation: pulse 1.5s infinite;
-        }
-        .latency {
-            margin-top: 5px;
-            font-size: 0.9rem;
-            color: #555;
         }
         .timestamp {
             margin-top: 10px;
@@ -74,8 +75,12 @@
             to { opacity: 1; transform: translateY(0); }
         }
         @media (max-width: 480px) {
-            .status-card { padding: 35px 20px; }
-            .status-card img { width: 100px; }
+            .status-card {
+                padding: 35px 20px;
+            }
+            .status-card img {
+                width: 100px;
+            }
         }
     </style>
 </head>
@@ -84,58 +89,22 @@
 <div class="status-card">
     <img src="/supershoppercart_3.png" alt="SuperShopperCart Logo">
     <h1>SuperShopperCart API</h1>
-    <div class="status-text" id="statusText">
-        <div class="status-dot" id="statusDot"></div>
-        Checking...
+    <div class="status-text">
+        <div class="status-dot"></div>
+        Connection OK
     </div>
-    <div class="latency" id="latencyText">Latency: —</div>
     <div class="timestamp" id="lastChecked">Last checked: —</div>
     <footer>Product by migge • Portugal • 2025</footer>
 </div>
 
 <script>
-    async function checkAPI() {
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-        const latencyText = document.getElementById('latencyText');
-        const timestamp = document.getElementById('lastChecked');
-
-        const startTime = performance.now();
-
-        try {
-            // Replace with your actual health-check endpoint
-            const response = await fetch('/api/health');
-            const endTime = performance.now();
-            const latency = Math.round(endTime - startTime);
-
-            const data = await response.json();
-
-            if (response.ok && data.status === 'OK') {
-                statusDot.style.background = '#28a745';
-                statusText.style.color = '#28a745';
-                statusText.innerHTML = `<div class="status-dot" style="background:#28a745"></div> Connection OK`;
-                latencyText.textContent = `Latency: ${latency} ms`;
-            } else {
-                statusDot.style.background = '#dc3545';
-                statusText.style.color = '#dc3545';
-                statusText.innerHTML = `<div class="status-dot" style="background:#dc3545"></div> Connection FAILED`;
-                latencyText.textContent = `Latency: ${latency} ms`;
-            }
-        } catch (error) {
-            const endTime = performance.now();
-            const latency = Math.round(endTime - startTime);
-            statusDot.style.background = '#dc3545';
-            statusText.style.color = '#dc3545';
-            statusText.innerHTML = `<div class="status-dot" style="background:#dc3545"></div> API Unreachable`;
-            latencyText.textContent = `Latency: ${latency} ms`;
-        }
-
+    function updateTimestamp() {
         const now = new Date();
-        timestamp.textContent = `Last checked: ${now.toLocaleString()}`;
+        const formattedTime = now.toLocaleString();
+        document.getElementById('lastChecked').textContent = `Last checked: ${formattedTime}`;
     }
-
-    checkAPI(); // Initial check
-    setInterval(checkAPI, 10000); // Re-check every 10s
+    updateTimestamp(); // Initial load
+    setInterval(updateTimestamp, 1000); // Update every second
 </script>
 
 </body>
