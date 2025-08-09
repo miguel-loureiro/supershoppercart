@@ -3,55 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SuperShoperCart API</title>
+    <title>SuperShopperCart API - Status</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f8f9fa;
+        * {
             margin: 0;
             padding: 0;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
             min-height: 100vh;
-        }
-        header {
-            padding: 30px 20px;
-            background-color: #ffffff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        header img {
-            max-width: 250px;
-            margin-bottom: 80px;
-        }
-        h1 {
-            margin: 0;
-            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f8faff, #e6f0ff);
             color: #333;
         }
-        h2 {
-            margin: 40px 0 0;
-            font-size: 1.2rem;
+        .status-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            padding: 50px 40px;
+            max-width: 420px;
+            width: 90%;
+            animation: fadeIn 0.8s ease-in-out;
+        }
+        .status-card img {
+            width: 120px;
+            margin-bottom: 25px;
+        }
+        .status-card h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #1a1a1a;
+        }
+        .status-card .status-text {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 500;
             color: #28a745;
         }
-        footer {
-            margin-top: auto;
-            padding: 15px;
-            background-color: #e9ecef;
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            background: #28a745;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+        .timestamp {
+            margin-top: 10px;
             font-size: 0.9rem;
-            color: #555;
+            color: #666;
+        }
+        footer {
+            margin-top: 25px;
+            font-size: 0.85rem;
+            color: #777;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 480px) {
+            .status-card {
+                padding: 35px 20px;
+            }
+            .status-card img {
+                width: 100px;
+            }
         }
     </style>
 </head>
 <body>
-<header>
-    <img src="/supershoppercart_3.png" alt="SuperShoperCart Logo">
-    <h1>SuperShopperCart API</h1>
-    <h2>Connection OK</h2>
-</header>
 
-<footer>
-    Product by cartfairy • Portugal • 2025
-</footer>
+<div class="status-card">
+    <img src="/supershoppercart_3.png" alt="SuperShopperCart Logo">
+    <h1>SuperShopperCart API</h1>
+    <div class="status-text">
+        <div class="status-dot"></div>
+        Connection OK
+    </div>
+    <div class="timestamp" id="lastChecked">Last checked: —</div>
+    <footer>Product by migge • Portugal • 2025</footer>
+</div>
+
+<script>
+    function updateTimestamp() {
+        const now = new Date();
+        const formattedTime = now.toLocaleString();
+        document.getElementById('lastChecked').textContent = `Last checked: ${formattedTime}`;
+    }
+    updateTimestamp(); // Initial load
+    setInterval(updateTimestamp, 1000); // Update every second
+</script>
+
 </body>
 </html>
