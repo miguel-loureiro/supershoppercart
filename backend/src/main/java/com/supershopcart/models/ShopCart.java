@@ -4,7 +4,6 @@ import com.google.cloud.firestore.annotation.DocumentId;
 import com.google.cloud.firestore.annotation.ServerTimestamp;
 import com.supershopcart.enums.SharePermission;
 import com.supershopcart.enums.ShopCartState;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 

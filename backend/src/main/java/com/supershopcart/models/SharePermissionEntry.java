@@ -1,8 +1,13 @@
 package com.supershopcart.models;
 
 import com.supershopcart.enums.SharePermission;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.Objects;
 
+@Setter
+@Getter
 public class SharePermissionEntry {
     private String shopperId;
     private SharePermission permission;
@@ -13,12 +18,6 @@ public class SharePermissionEntry {
         this.shopperId = shopperId;
         this.permission = permission;
     }
-
-    public String getShopperId() { return shopperId; }
-    public void setShopperId(String shopperId) { this.shopperId = shopperId; }
-
-    public SharePermission getPermission() { return permission; }
-    public void setPermission(SharePermission permission) { this.permission = permission; }
 
     @Override
     public boolean equals(Object o) {

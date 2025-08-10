@@ -1,17 +1,12 @@
 package com.supershopcart.seeder;
 
-import com.google.api.core.ApiFuture;
-import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.WriteResult;
 import com.supershopcart.models.GroceryItem;
 import com.supershopcart.models.ShopCart;
 import com.supershopcart.models.Shopper;
 import com.supershopcart.repositories.ShopCartRepository;
 import com.supershopcart.repositories.ShopperRepository;
-import com.supershopcart.services.FirestoreService;
 import com.supershopcart.services.ShopCartService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier; // Import Qualifier
+// Import Qualifier
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,23 +16,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 // Add a logger for this class
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.WriteResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Component
 @Profile("dev-emulator") // Only runs when this profile is active
