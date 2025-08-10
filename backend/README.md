@@ -642,3 +642,5 @@ The code will now work seamlessly in a Docker container, where you can inject th
   Keeping them separate allows you to manage each one with its own setup.
 - Scalability: If your backend starts receiving a lot of traffic, you can scale it independently of the mobile part. 
   This optimizes cost and performance, as you're not paying for resources you don't need on the other side.
+
+For now all goog.
