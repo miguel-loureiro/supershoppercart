@@ -29,7 +29,7 @@ services:
       - JWT_SECRET=bb7fe82af6c5edcc8bc7da50d9ab448331a29bbb12c2559782fa1f3c8fafa81d
       - JWT_ACCESS_TOKEN_EXPIRATION=3600000
       - JWT_REFRESH_TOKEN_EXPIRATION=2592000000
-      - OAUTH_ID=688070817045-gp18jj8mdl6eg4vdu08budfed5h8e97n.apps.googleusercontent.com
+      - OAUTH_ID=656975893985-nnh8pl4ul2b8ve4uc0514u0h06f93hs.apps.googleusercontent.com
 
   firebase-emulator:
     image: node:18
