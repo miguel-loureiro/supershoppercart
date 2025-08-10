@@ -5,13 +5,11 @@ import com.supershopcart.enums.ShopCartState;
 import com.supershopcart.models.GroceryItem;
 import com.supershopcart.models.SharePermissionEntry;
 import com.supershopcart.models.ShopCart;
-import com.supershopcart.models.Shopper;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 

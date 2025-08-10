@@ -2,7 +2,6 @@ package com.supershopcart.controllers;
 
 import com.supershopcart.dtos.ShareCartRequestDTO;
 import com.supershopcart.dtos.ShopCartDetailDTO;
-import com.supershopcart.enums.SharePermission;
 import com.supershopcart.models.Shopper;
 import com.supershopcart.services.FirestoreService;
 import io.swagger.v3.oas.annotations.Operation;
