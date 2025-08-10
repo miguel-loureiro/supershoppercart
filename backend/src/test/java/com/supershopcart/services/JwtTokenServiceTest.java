@@ -10,7 +10,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Date;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(classes = {JwtTokenService.class})
 @TestPropertySource(properties = {
         "jwt.secret=test-secret-key-that-is-long-enough-for-hmac-sha256-algorithm",
         "jwt.access-token.expiration=3600000", // 1 hour

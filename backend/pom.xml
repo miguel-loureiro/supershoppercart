@@ -61,8 +61,7 @@
                 <version>${lombok.version}</version>
             </dependency>
 
-            <dependency> <!-- necessary for Java 9+ -->
-                <groupId>org.apache.tomcat</groupId>
+            <dependency> <groupId>org.apache.tomcat</groupId>
                 <artifactId>annotations-api</artifactId>
                 <version>6.0.53</version>
                 <scope>provided</scope>
@@ -71,26 +70,22 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Adicionada a dependência do H2 para o perfil dev-emulator -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.testcontainers/testcontainers-bom -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-bom</artifactId>
             <version>1.21.3</version>
             <type>pom</type>
         </dependency>
-        <!-- Core Testcontainers -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- JUnit 5 integration -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -99,9 +94,7 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-firestore</artifactId>
-            <!-- Version is managed by libraries-bom -->
         </dependency>
-        <!-- For Validation -->
         <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
@@ -112,7 +105,6 @@
             <artifactId>hibernate-validator</artifactId>
             <version>9.0.1.Final</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.springdoc/springdoc-openapi-starter-webmvc-ui -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -180,6 +172,18 @@
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-checkstyle-plugin -->
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <version>3.6.0</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-pmd-plugin -->
+        <dependency>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-pmd-plugin</artifactId>
+            <version>3.27.0</version>
         </dependency>
     </dependencies>
 
@@ -258,13 +262,12 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <systemPropertyVariables>
-                        <FIRESTORE_EMULATOR_HOST>127.0.0.1:8081</FIRESTORE_EMULATOR_HOST>
+                        <firebase.emulator.host>127.0.0.1:8081</firebase.emulator.host>
                         <GCLOUD_PROJECT>demo-supershopcart-test</GCLOUD_PROJECT>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
 
-            <!-- JaCoCo Plugin for Code Coverage -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
