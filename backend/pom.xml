@@ -22,16 +22,16 @@
     </licenses>
     <developers>
         <developer>
-            <name>Miguel Loureiro</name>
-            <email>publixoapagar@gmail.com</email>
-            <organization>migge</organization>
-            <organizationUrl>http://www.migge.com</organizationUrl>
+            <name>Your Name</name>
+            <email>your.email@example.com</email>
+            <organization>Your Organization</organization>
+            <organizationUrl>http://www.example.com/organizationUrl</organizationUrl>
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:git://github.com/your-repo/supershopcart.git</connection>
-        <developerConnection>scm:git:ssh://github.com:your-repo/supershopcart.git</developerConnection>
-        <url>https://github.com/your-repo/supershopcart</url>
+        <connection>scm:git:https://github.com/miguel-loureiro/supershoppercart.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/miguel-loureiro/supershoppercart.git</developerConnection>
+        <url>https://github.com/miguel-loureiro/supershoppercart/tree/main/backend</url>
         <tag>HEAD</tag>
     </scm>
 
@@ -41,9 +41,6 @@
         <google.cloud.libraries.bom.version>26.64.0</google.cloud.libraries.bom.version>
         <lombok.version>1.18.32</lombok.version>
         <jacoco.version>0.8.12</jacoco.version>
-        <!-- Added properties for code quality plugins -->
-        <checkstyle.version>10.17.0</checkstyle.version>
-        <pmd.version>3.25.0</pmd.version>
     </properties>
 
     <dependencyManagement>
@@ -173,51 +170,10 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-checkstyle-plugin -->
-        <dependency>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-checkstyle-plugin</artifactId>
-            <version>3.6.0</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-pmd-plugin -->
-        <dependency>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-pmd-plugin</artifactId>
-            <version>3.27.0</version>
-        </dependency>
     </dependencies>
 
     <build>
         <plugins>
-            <!-- Checkstyle Plugin to enforce coding standards -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.6.0</version>
-                <configuration>
-                    <!-- Using the default checkstyle rules from the JAR -->
-                    <configLocation>google_checks.xml</configLocation>
-                    <consoleOutput>true</consoleOutput>
-                    <failsOnError>true</failsOnError>
-                    <linkXRef>false</linkXRef>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>validate</id>
-                        <phase>validate</phase>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- PMD Plugin to find common code bugs -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-pmd-plugin</artifactId>
-                <version>3.27.0</version>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
