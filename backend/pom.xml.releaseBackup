@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.5.3</version>
-        <relativePath />
+        <relativePath/>
     </parent>
     <groupId>com</groupId>
-    <artifactId>supershoppercart</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-    <name>supershoppercart</name>
-    <description>SuperShopperCart_app</description>
-    <url />
+    <artifactId>supershopcart</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>supershopcart</name>
+    <description>SuperShopCart_app</description>
+    <url/>
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -21,12 +22,19 @@
     </licenses>
     <developers>
         <developer>
-            <name>Miguel Loureiro</name>
-            <email>publixoapagar@gmail.com</email>
-            <organization>migge</organization>
-            <organizationUrl>http://www.supershoppercart.com</organizationUrl>
+            <name>Your Name</name>
+            <email>your.email@example.com</email>
+            <organization>Your Organization</organization>
+            <organizationUrl>http://www.example.com/organizationUrl</organizationUrl>
         </developer>
     </developers>
+    <scm>
+        <connection>scm:git:https://github.com/miguel-loureiro/supershoppercart.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/miguel-loureiro/supershoppercart.git</developerConnection>
+        <url>https://github.com/miguel-loureiro/supershoppercart/tree/main/backend</url>
+        <tag>HEAD</tag>
+    </scm>
+
     <properties>
         <java.version>17</java.version>
         <firebase.version>9.5.0</firebase.version>
@@ -157,11 +165,9 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.18.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -194,14 +200,23 @@
                     </excludes>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>
-                        -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
-                        -Xshare:off
-                    </argLine>
                     <systemPropertyVariables>
                         <firebase.emulator.host>127.0.0.1:8081</firebase.emulator.host>
                         <GCLOUD_PROJECT>demo-supershopcart-test</GCLOUD_PROJECT>

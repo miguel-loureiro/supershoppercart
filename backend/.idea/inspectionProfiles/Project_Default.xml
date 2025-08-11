@@ -7,5 +7,23 @@
     <inspection_tool class="EqualsWithItself" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ignoreNonFinalClassesInTest" value="true" />
     </inspection_tool>
+    <inspection_tool class="VulnerableLibrariesLocal" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="isIgnoringEnabled" value="true" />
+      <option name="ignoredModules">
+        <list>
+          <option value="supershopcart" />
+        </list>
+      </option>
+      <option name="ignoredPackages">
+        <list>
+          <option value="org.iq80.snappy:snappy:0.4" />
+        </list>
+      </option>
+      <option name="ignoredReasons">
+        <list>
+          <option value="Not exploitable" />
+        </list>
+      </option>
+    </inspection_tool>
   </profile>
 </component>
