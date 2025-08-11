@@ -9,7 +9,7 @@
     </parent>
     <groupId>com</groupId>
     <artifactId>supershoppercart</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <name>supershoppercart</name>
     <description>SuperShopperCart_app</description>
     <url />
@@ -31,7 +31,7 @@
         <connection>scm:git:https://github.com/miguel-loureiro/supershoppercart.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/miguel-loureiro/supershoppercart.git</developerConnection>
         <url>https://github.com/miguel-loureiro/supershoppercart/tree/main/backend</url>
-        <tag>1.0.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <properties>
