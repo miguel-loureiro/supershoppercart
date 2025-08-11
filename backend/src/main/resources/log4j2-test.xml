@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <!-- Minimal output for tests -->
+            <PatternLayout pattern="%d{HH:mm:ss} %-5level %c{1} - %msg%n"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <!-- Only app logs at WARN to avoid spam -->
+        <Logger name="com.supershopcart" level="warn" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <!-- Quiet down libraries -->
+        <Logger name="org.springframework" level="warn"/>
+        <Logger name="org.hibernate" level="warn"/>
+        <Logger name="com.google" level="warn"/>
+        <Logger name="io.grpc" level="warn"/>
+
+        <!-- Root logger -->
+        <Root level="warn">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

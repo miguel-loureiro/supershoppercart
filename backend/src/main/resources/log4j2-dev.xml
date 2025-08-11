@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <!-- Verbose + colorized for local debugging -->
+            <PatternLayout pattern="%highlight{%d{yyyy-MM-dd HH:mm:ss} [%t] %-5level %logger{36} - %msg%n}{FATAL=bg_red, ERROR=red, WARN=yellow, INFO=white, DEBUG=cyan, TRACE=blue}" />
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <!-- App logs at DEBUG for maximum visibility -->
+        <Logger name="com.supershopcart" level="debug" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+
+        <!-- Libraries with useful info -->
+        <Logger name="org.springframework.security" level="debug"/>
+        <Logger name="com.google.cloud" level="info"/>
+        <Logger name="com.google.firebase" level="info"/>
+        <Logger name="io.grpc.netty" level="warn"/>
+
+        <!-- Root logger -->
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>
