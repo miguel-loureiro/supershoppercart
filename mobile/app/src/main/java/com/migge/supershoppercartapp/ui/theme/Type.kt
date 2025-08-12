@@ -1,4 +1,4 @@
-package com.example.supershoppercartapp.ui.theme
+package com.migge.supershoppercartapp.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

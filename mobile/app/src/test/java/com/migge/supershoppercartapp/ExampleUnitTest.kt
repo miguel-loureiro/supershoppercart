@@ -1,4 +1,4 @@
-package com.example.supershoppercartapp
+package com.migge.supershoppercartapp
 
 import org.junit.Test
 

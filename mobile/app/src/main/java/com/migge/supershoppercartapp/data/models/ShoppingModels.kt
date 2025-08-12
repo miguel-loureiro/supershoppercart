@@ -1,4 +1,4 @@
-package com.example.supershoppercartapp.data.models
+package com.migge.supershoppercartapp.data.models
 
 data class ShopCart(
     val id: String,

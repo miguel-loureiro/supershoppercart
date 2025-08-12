@@ -1,4 +1,4 @@
-package com.example.supershoppercartapp.ui.theme
+package com.migge.supershoppercartapp.ui.theme
 
 import android.app.Activity
 import android.os.Build

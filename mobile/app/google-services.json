@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "656975893985",
+    "firebase_url": "https://supershoppercart-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "supershoppercart",
+    "storage_bucket": "supershoppercart.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:656975893985:android:5e5553cd771a0a15c4eea0",
+        "android_client_info": {
+          "package_name": "com.migge.supershoppercartapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "656975893985-h7137v1vijrg958dqhp1ffmt1b87ktj0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.migge.supershoppercartapp",
+            "certificate_hash": "c993d05270f704a0d71fb3b142cce43a79790f06"
+          }
+        },
+        {
+          "client_id": "656975893985-nnh8pi6ul268ve4uc0514u0sh06t83fe.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHew00ZY_A0oZi2YqlzmzZFPkBpYUZgaQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "656975893985-nnh8pi6ul268ve4uc0514u0sh06t83fe.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
