@@ -4,6 +4,7 @@ com/supershoppercart/models/RefreshToken.class
 com/supershoppercart/dtos/ShopperSummaryDTO.class
 com/supershoppercart/services/ShopCartService.class
 com/supershoppercart/repositories/ShopperRepositoryImpl.class
+com/supershoppercart/dtos/CreateShopCartRequestDTO.class
 com/supershoppercart/repositories/ShopCartRepository.class
 com/supershoppercart/security/filter/JwtAuthFilter.class
 com/supershoppercart/enums/SharePermission.class

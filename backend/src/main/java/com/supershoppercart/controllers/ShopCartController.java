@@ -47,7 +47,7 @@ public class ShopCartController {
         return firestoreService.getShopCartsByShopperId(shopper.getId());
     }
 
-    @PostMapping
+    @PostMapping("/new")
     public ResponseEntity<?> createCart(
             @AuthenticationPrincipal Shopper currentShopper,
             @Valid @RequestBody CreateShopCartRequestDTO request) {
