@@ -1,7 +1,10 @@
 package com.supershoppercart.controllers;
 
+import com.supershoppercart.dtos.CreateShopCartRequestDTO;
 import com.supershoppercart.dtos.ShareCartRequestDTO;
 import com.supershoppercart.dtos.ShopCartDetailDTO;
+import com.supershoppercart.enums.ShopCartState;
+import com.supershoppercart.models.ShopCart;
 import com.supershoppercart.models.Shopper;
 import com.supershoppercart.services.FirestoreService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,8 +22,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/carts")
@@ -43,6 +45,51 @@ public class ShopCartController {
     public List<ShopCartDetailDTO> getMyCarts(@AuthenticationPrincipal Shopper shopper) throws Exception {
         logger.info("Fetching carts for shopper with ID: {}", shopper.getId());
         return firestoreService.getShopCartsByShopperId(shopper.getId());
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createCart(
+            @AuthenticationPrincipal Shopper currentShopper,
+            @Valid @RequestBody CreateShopCartRequestDTO request) {
+
+        // Add a null check for the authenticated shopper
+        if (currentShopper == null) {
+            // Log the error and return a 401 Unauthorized response
+            logger.warn("Attempt to create cart without a valid authenticated shopper.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Authentication required to create a cart."));
+        }
+
+        try {
+            logger.info("Creating a new cart for shopper {} with name '{}'", currentShopper.getId(), request.getName());
+
+            // Build the ShopCart entity
+            ShopCart newCart = new ShopCart();
+            newCart.setId(UUID.randomUUID().toString());
+            newCart.setName(request.getName());
+            newCart.setDateKey(request.getDateKey());
+            newCart.setItems(request.getItems() != null ? request.getItems() : new ArrayList<>());
+            newCart.setShopperIds(List.of(currentShopper.getId()));
+            newCart.setCreatedBy(currentShopper.getId());
+            newCart.setPublic(request.isPublic());
+            newCart.setTemplate(request.isTemplate());
+            newCart.setState(ShopCartState.ACTIVE);
+            newCart.setCreatedAt(new Date());
+            newCart.setLastModified(new Date());
+            newCart.setLastInteraction(new Date());
+
+            // Save to Firestore
+            firestoreService.saveShopCart(newCart);
+
+            // Convert to DTO for response
+            ShopCartDetailDTO dto = new ShopCartDetailDTO(newCart.getId(), newCart);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+        } catch (Exception e) {
+            logger.error("Error creating cart: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal server error: " + e.getMessage()));
+        }
     }
 
     /**
