@@ -1,5 +1,4 @@
 com/supershoppercart/seeder/ShopCartSeeder.class
-com/supershoppercart/startup/TemplateInitializer.class
 com/supershoppercart/models/RefreshToken.class
 com/supershoppercart/dtos/ShopperSummaryDTO.class
 com/supershoppercart/services/ShopCartService.class

@@ -188,6 +188,7 @@ public class FirestoreServiceIntegrationTest {
     void testSaveShopCartWithCreatorAssignsPermissions() throws Exception {
         ShopCart cart = new ShopCart();
         cart.setName("Integration Test Cart");
+        cart.setId("something_123");
         cart.setItems(List.of(new GroceryItem("Milk", "1 gallon", false)));
         cart.setDateKey(LocalDate.now().toString());
         cart.setShopperIds(new ArrayList<>()); // Initialize to empty, service will add creator

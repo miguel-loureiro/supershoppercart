@@ -2,16 +2,22 @@ package com.supershoppercart.services;
 
 import com.supershoppercart.models.Shopper;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.*;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = {JwtTokenService.class})
 @TestPropertySource(properties = {
@@ -26,12 +32,20 @@ class JwtTokenServiceTest {
 
     private Shopper testShopper;
 
+    private final String secretKeyString = "aStrongAndSecretKeyForTestingPurposesThatIsAtLeast32BytesLong";
+
     @BeforeEach
     void setUp() {
         // Create test shopper
         testShopper = new Shopper();
         testShopper.setId("test-shopper-123");
         testShopper.setName("Test Shopper");
+
+        ReflectionTestUtils.setField(jwtTokenService, "secretKeyString", secretKeyString);
+        ReflectionTestUtils.setField(jwtTokenService, "accessTokenExpiration", TimeUnit.MINUTES.toMillis(60));
+        ReflectionTestUtils.setField(jwtTokenService, "refreshTokenExpiration", TimeUnit.DAYS.toMillis(30));
+        // Chamar manualmente o método de inicialização
+        jwtTokenService.initializeSecretKey();
     }
 
     @Test
@@ -604,8 +618,8 @@ class JwtTokenServiceTest {
     @DisplayName("Should return null from extractShopperId on unexpected exception")
     void testExtractShopperIdUnexpectedException() throws Exception {
         JwtTokenService spyService = Mockito.spy(jwtTokenService);
-        Mockito.doThrow(new RuntimeException("Unexpected error"))
-                .when(spyService).extractAllClaims(Mockito.anyString());
+        doThrow(new RuntimeException("Unexpected error"))
+                .when(spyService).extractAllClaims(anyString());
 
         String result = spyService.extractShopperId("fake-token");
         assertNull(result);
@@ -630,8 +644,8 @@ class JwtTokenServiceTest {
     void testExtractShopperIdReturnsNullOnJwtException() {
         JwtTokenService spyService = Mockito.spy(jwtTokenService);
         // Simulate JwtException thrown in the parser logic
-        Mockito.doThrow(new io.jsonwebtoken.JwtException("Mocked JWT exception"))
-                .when(spyService).extractAllClaims(Mockito.anyString());
+        doThrow(new io.jsonwebtoken.JwtException("Mocked JWT exception"))
+                .when(spyService).extractAllClaims(anyString());
 
         String result = spyService.extractShopperId("any-invalid-token");
         assertNull(result);
@@ -654,5 +668,160 @@ class JwtTokenServiceTest {
 
         String shopperId = jwtTokenService.extractShopperId(invalidToken);
         assertNull(shopperId);
+    }
+
+    @Test
+    @DisplayName("Should return null when token is null")
+    void extractShopperId_shouldReturnNull_whenTokenIsNull() {
+        // When
+        String shopperId = jwtTokenService.extractShopperId(null);
+
+        // Then
+        assertNull(shopperId);
+    }
+
+    @Test
+    @DisplayName("Should return null when token is empty")
+    void extractShopperId_shouldReturnNull_whenTokenIsEmpty() {
+        // When
+        String shopperId = jwtTokenService.extractShopperId("");
+
+        // Then
+        assertNull(shopperId);
+    }
+
+    @Test
+    @DisplayName("Should return null when token has invalid signature")
+    void extractShopperId_shouldReturnNull_whenTokenHasInvalidSignature() {
+        // Given
+        String invalidSecret = "anotherDifferentKeyForTestingPurposesThatIsAtLeast32BytesLong";
+        String invalidToken = Jwts.builder()
+                .subject("test-shopper")
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(invalidSecret.getBytes()))
+                .compact();
+
+        // When
+        String shopperId = jwtTokenService.extractShopperId(invalidToken);
+
+        // Then
+        assertNull(shopperId);
+    }
+
+    @Test
+    @DisplayName("Should return null when token has expired")
+    void extractShopperId_shouldReturnNull_whenTokenHasExpired() {
+        // Given
+        SecretKey secretKey = (SecretKey) ReflectionTestUtils.getField(jwtTokenService, "secretKey");
+
+        String expiredToken = Jwts.builder()
+                .subject("test-shopper")
+                .expiration(new Date(System.currentTimeMillis() - 1000)) // Expirado há 1 segundo
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
+
+        // When
+        String shopperId = jwtTokenService.extractShopperId(expiredToken);
+
+        // Then
+        assertNull(shopperId);
+    }
+
+    @Test
+    @DisplayName("Should return true when token is null")
+    void isTokenExpired_shouldReturnTrue_whenTokenIsNull() {
+        // When
+        boolean isExpired = jwtTokenService.isTokenExpired(null);
+
+        // Then
+        assertTrue(isExpired);
+    }
+
+    @Test
+    @DisplayName("Should return true when token is empty")
+    void isTokenExpired_shouldReturnTrue_whenTokenIsEmpty() {
+        // When
+        boolean isExpired = jwtTokenService.isTokenExpired("   ");
+
+        // Then
+        assertTrue(isExpired);
+    }
+
+    @Test
+    @DisplayName("Should return true when token is expired using reflection to access key")
+    void isTokenExpired_shouldReturnTrue_whenTokenIsExpired_withReflection() {
+        // Given
+        SecretKey secretKey = (SecretKey) ReflectionTestUtils.getField(jwtTokenService, "secretKey");
+
+        String expiredToken = Jwts.builder()
+                .subject("test-shopper")
+                .issuedAt(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1))) // Emitido há 1 dia
+                .expiration(new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(1))) // Expirou há 1 hora
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
+
+        // When
+        boolean isExpired = jwtTokenService.isTokenExpired(expiredToken);
+
+        // Then
+        assertTrue(isExpired);
+    }
+
+    @Test
+    @DisplayName("Should return true when extractAllClaims throws an exception")
+    void isTokenExpired_shouldReturnTrue_onException() {
+        // Given
+        JwtTokenService spiedService = Mockito.spy(jwtTokenService);
+        doThrow(new RuntimeException("Simulated parsing error")).when(spiedService).extractAllClaims(anyString());
+
+        // When
+        boolean isExpired = spiedService.isTokenExpired("a.b.c");
+
+        // Then
+        assertTrue(isExpired);
+        verify(spiedService, times(1)).extractAllClaims(anyString());
+    }
+
+    @Test
+    @DisplayName("Should return null when token is null or empty")
+    void getExpirationDate_shouldReturnNull_whenTokenIsInvalid() {
+        assertNull(jwtTokenService.getExpirationDate(null));
+        assertNull(jwtTokenService.getExpirationDate(""));
+    }
+
+    @Test
+    @DisplayName("Should return null when extractAllClaims throws an exception")
+    void getExpirationDate_shouldReturnNull_onException() {
+        // Given
+        JwtTokenService spiedService = Mockito.spy(jwtTokenService);
+        doThrow(new RuntimeException("Simulated parsing error")).when(spiedService).extractAllClaims(anyString());
+
+        // When
+        Date expirationDate = spiedService.getExpirationDate("a.b.c");
+
+        // Then
+        assertNull(expirationDate);
+        verify(spiedService, times(1)).extractAllClaims(anyString());
+    }
+
+    @Test
+    @DisplayName("Should return null when token is null or empty")
+    void getIssuedDate_shouldReturnNull_whenTokenIsInvalid() {
+        assertNull(jwtTokenService.getIssuedDate(null));
+        assertNull(jwtTokenService.getIssuedDate(""));
+    }
+
+    @Test
+    @DisplayName("Should return null when extractAllClaims throws an exception")
+    void getIssuedDate_shouldReturnNull_onException() {
+        // Given
+        JwtTokenService spiedService = Mockito.spy(jwtTokenService);
+        doThrow(new RuntimeException("Simulated parsing error")).when(spiedService).extractAllClaims(anyString());
+
+        // When
+        Date issuedDate = spiedService.getIssuedDate("a.b.c");
+
+        // Then
+        assertNull(issuedDate);
+        verify(spiedService, times(1)).extractAllClaims(anyString());
     }
 }

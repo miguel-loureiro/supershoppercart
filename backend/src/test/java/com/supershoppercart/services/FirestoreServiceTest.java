@@ -5,15 +5,17 @@ import com.google.cloud.firestore.*;
 import com.supershoppercart.dtos.ShopCartDetailDTO;
 import com.supershoppercart.enums.SharePermission;
 import com.supershoppercart.enums.ShopCartState;
+import com.supershoppercart.models.SharePermissionEntry;
 import com.supershoppercart.models.ShopCart;
 import com.supershoppercart.models.Shopper;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,9 +27,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-
-import java.util.Collections;
-import java.util.List;
+import org.mockito.stubbing.OngoingStubbing;
 
 import static org.mockito.ArgumentMatchers.anyString;
 
@@ -60,9 +60,25 @@ public class FirestoreServiceTest {
     @Mock
     private DocumentSnapshot documentSnapshot;
     @Mock
+    private DocumentSnapshot shopperDocumentSnapshot;
+    @Mock
     private QuerySnapshot querySnapshot;
     @Mock
     private Query query;
+    @Mock
+    private DocumentReference cartDocRef;
+    @Mock
+    private DocumentReference shopperDocRef;
+    @Mock
+    private DocumentSnapshot cartDocumentSnapshot;
+    @Mock
+    private ApiFuture<QuerySnapshot> apiFutureQuerySnapshot;
+    @Mock
+    private ApiFuture<DocumentSnapshot> apiFutureDocumentSnapshot;
+    @Mock
+    private ApiFuture<Void> apiFutureVoid;
+    @Mock
+    private QueryDocumentSnapshot shopperQueryDocumentSnapshot;
 
     @InjectMocks
     private FirestoreService firestoreService;
@@ -72,6 +88,14 @@ public class FirestoreServiceTest {
     private ShopCart testShopCart;
     private static final String TEST_SHOPPER_ID = "shopper123";
     private static final String TEST_CART_ID = "cart123";
+    private ShopCart shopCart;
+    private Shopper shopper;
+    private Shopper targetShopper;
+    private String cartId = "cart123";
+    private String requesterShopperId = "shopper1";
+    private String targetEmail = "target@example.com";
+    private String targetShopperId = "shopper2";
+    private SharePermission permission = SharePermission.EDIT;
 
     @BeforeEach
     void setUp() {
@@ -79,9 +103,31 @@ public class FirestoreServiceTest {
         // Mover mocks específicos para dentro dos testes individuais.
         testShopper = new Shopper(TEST_SHOPPER_ID, "test@example.com", "Test Shopper");
         testShopCart = new ShopCart();
+        testShopCart.setId(TEST_CART_ID);
         testShopCart.setCreatedBy(TEST_SHOPPER_ID);
         testShopCart.setShopperIds(List.of(TEST_SHOPPER_ID));
         testShopCart.addOrUpdatePermission(TEST_SHOPPER_ID, SharePermission.ADMIN);
+
+        // Inicializar objetos de dados
+        shopCart = new ShopCart();
+        shopCart.setId(cartId);
+        shopCart.setCreatedBy(requesterShopperId);
+        shopCart.setShopperIds(new ArrayList<>(Collections.singletonList(requesterShopperId)));
+        shopCart.setSharePermissions(new ArrayList<>());
+        shopCart.addOrUpdatePermission(requesterShopperId, SharePermission.ADMIN);
+
+        shopper = new Shopper();
+        shopper.setId(requesterShopperId);
+        shopper.setEmail("requester@example.com");
+        shopper.setName("Requester");
+
+        targetShopper = new Shopper();
+        targetShopper.setId(targetShopperId);
+        targetShopper.setEmail(targetEmail);
+        targetShopper.setName("Target");
+
+        when(firestore.collection("shopcarts")).thenReturn(shopcartsCollection);
+        when(firestore.collection("shoppers")).thenReturn(shoppersCollection);
     }
 
     // --- Save Shopper Tests ---
@@ -176,17 +222,24 @@ public class FirestoreServiceTest {
     @Nested
     @DisplayName("saveShopCart - Scenarios")
     class SaveShopCartTests {
+        @BeforeEach
+        void setupMocks() {
+            // This mocking sequence is now correct for .document(id).set(object)
+            when(firestore.collection("shopcarts")).thenReturn(shopcartsCollection);
+            when(shopcartsCollection.document(anyString())).thenReturn(documentReference);
+            when(documentReference.set(any(ShopCart.class))).thenReturn(writeResultFuture);
+        }
+
         @Test
-        @DisplayName("Should set default permissions and save a new cart")
+        @DisplayName("Should set default permissions and save a cart with a predefined ID")
         void saveShopCart_shouldSetPermissionsAndSave() throws ExecutionException, InterruptedException {
             // Arrange
             String creatorId = TEST_SHOPPER_ID;
             String sharedId = "sharedId456";
             testShopCart.setShopperIds(List.of(creatorId, sharedId));
 
-            when(firestore.collection("shopcarts")).thenReturn(shopcartsCollection);
-            when(shopcartsCollection.add(any(ShopCart.class))).thenReturn(documentReferenceFuture);
-            when(documentReferenceFuture.get()).thenReturn(documentReference);
+            // Mock the successful future result
+            when(writeResultFuture.get()).thenReturn(null); // Return value of WriteResult doesn't matter here
             when(documentReference.getId()).thenReturn(TEST_CART_ID);
 
             // Act
@@ -194,66 +247,44 @@ public class FirestoreServiceTest {
 
             // Assert
             assertEquals(TEST_CART_ID, savedId);
-            ArgumentCaptor<ShopCart> captor = ArgumentCaptor.forClass(ShopCart.class);
-            verify(shopcartsCollection, times(1)).add(captor.capture());
 
-            ShopCart savedCart = captor.getValue();
-            assertEquals(SharePermission.ADMIN, savedCart.getPermissionForShopper(creatorId));
-            assertEquals(SharePermission.EDIT, savedCart.getPermissionForShopper(sharedId));
+            // Capture the argument passed to .set() to verify its state
+            ArgumentCaptor<ShopCart> captor = ArgumentCaptor.forClass(ShopCart.class);
+            verify(documentReference, times(1)).set(captor.capture());
+            verify(shopcartsCollection, times(1)).document(TEST_CART_ID);
+
+            ShopCart capturedCart = captor.getValue();
+            assertEquals(SharePermission.ADMIN, capturedCart.getPermissionForShopper(creatorId));
+            assertEquals(SharePermission.EDIT, capturedCart.getPermissionForShopper(sharedId));
         }
 
         @Test
-        @DisplayName("Should throw RuntimeException when Firestore operation fails due to ExecutionException")
+        @DisplayName("Should throw RuntimeException when Firestore operation fails with ExecutionException")
         void saveShopCart_throwsRuntimeException_onExecutionException() throws ExecutionException, InterruptedException {
             // Arrange
-            when(firestore.collection("shopcarts")).thenReturn(shopcartsCollection);
-            when(shopcartsCollection.add(any(ShopCart.class))).thenReturn(documentReferenceFuture);
-            when(documentReferenceFuture.get()).thenThrow(new ExecutionException("DB error", new RuntimeException()));
+            // Mock the future to throw the exception
+            Exception cause = new RuntimeException("DB error");
+            when(writeResultFuture.get()).thenThrow(new ExecutionException(cause));
 
             // Act & Assert
             assertThatThrownBy(() -> firestoreService.saveShopCart(testShopCart))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Execution error while saving shop cart");
-        }
-
-        @Test
-        @DisplayName("Should throw RuntimeException when ExecutionException occurs during shop cart save")
-        void shouldThrowRuntimeExceptionWhenExecutionExceptionOccurs() throws ExecutionException, InterruptedException {
-            // Arrange
-            ShopCart shopCart = new ShopCart();
-            shopCart.setShopperIds(Collections.singletonList("shopper1"));
-
-            when(firestore.collection("shopcarts")).thenReturn(collectionReference);
-            when(collectionReference.add(any(ShopCart.class))).thenReturn(documentReferenceFuture);
-
-            // Simular a exceção na chamada .get()
-            when(documentReferenceFuture.get()).thenThrow(new ExecutionException("Simulated Firestore error", new Exception("Underlying cause")));
-
-            // Act & Assert
-            assertThatThrownBy(() -> firestoreService.saveShopCart(shopCart))
-                    .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("Execution error while saving shop cart")
-                    .hasCauseInstanceOf(Exception.class); // Verifica a causa subjacente
+                    .hasCause(cause); // Assert the original cause is preserved
         }
 
         @Test
-        @DisplayName("Should throw RuntimeException and set interrupted flag when InterruptedException occurs")
-        void shouldThrowRuntimeExceptionWhenInterruptedExceptionOccurs() throws ExecutionException, InterruptedException {
+        @DisplayName("Should throw RuntimeException when InterruptedException occurs")
+        void saveShopCart_throwsRuntimeException_onInterruptedException() throws ExecutionException, InterruptedException {
             // Arrange
-            ShopCart shopCart = new ShopCart();
-            shopCart.setShopperIds(Collections.singletonList("shopper1"));
-
-            when(firestore.collection("shopcarts")).thenReturn(collectionReference);
-            when(collectionReference.add(any(ShopCart.class))).thenReturn(documentReferenceFuture);
-
-            // Simular a exceção na chamada .get()
-            when(documentReferenceFuture.get()).thenThrow(new InterruptedException("Simulated interruption"));
+            InterruptedException cause = new InterruptedException("Simulated interruption");
+            when(writeResultFuture.get()).thenThrow(cause);
 
             // Act & Assert
-            assertThatThrownBy(() -> firestoreService.saveShopCart(shopCart))
+            assertThatThrownBy(() -> firestoreService.saveShopCart(testShopCart))
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("Interrupted while saving shop cart")
-                    .hasCauseInstanceOf(InterruptedException.class);
+                    .hasCause(cause);
         }
     }
 
@@ -381,21 +412,6 @@ public class FirestoreServiceTest {
                 TEST_CART_ID, TEST_SHOPPER_ID, "target@example.com", SharePermission.EDIT);
 
         assertTrue(result);
-    }
-
-    @Test
-    @DisplayName("shareCartWithShopper - should return false when cart does not exist")
-    void shareCartWithShopper_shouldReturnFalse_whenCartNotFound() throws Exception {
-        when(firestore.collection("shopcarts")).thenReturn(shopcartsCollection);
-        when(shopcartsCollection.document(TEST_CART_ID)).thenReturn(documentReference);
-        when(documentReference.get()).thenReturn(documentSnapshotFuture);
-        when(documentSnapshotFuture.get()).thenReturn(documentSnapshot);
-        when(documentSnapshot.exists()).thenReturn(false);
-
-        boolean result = firestoreService.shareCartWithShopper(
-                TEST_CART_ID, TEST_SHOPPER_ID, "target@example.com", SharePermission.EDIT);
-
-        assertFalse(result);
     }
 
     @Test
@@ -548,5 +564,198 @@ public class FirestoreServiceTest {
         when(documentSnapshotFuture.get()).thenThrow(new InterruptedException("interrupted"));
 
         assertThrows(RuntimeException.class, () -> firestoreService.getShopCartById(TEST_CART_ID));
+    }
+
+    @Test
+    void hydrateShopCartDTO_shouldReturnDTO_withShoppersPopulated() throws Exception {
+        // Given
+        shopCart.getShopperIds().add(targetShopperId);
+
+        when(cartDocumentSnapshot.toObject(ShopCart.class)).thenReturn(shopCart);
+        when(cartDocumentSnapshot.getId()).thenReturn(cartId);
+
+        // Mocking the shoppers query
+        Query shoppersQuery = mock(Query.class);
+        when(shoppersCollection.whereIn(FieldPath.documentId(), shopCart.getShopperIds())).thenReturn(shoppersQuery);
+        when(shoppersQuery.get()).thenReturn(apiFutureQuerySnapshot);
+        when(apiFutureQuerySnapshot.get()).thenReturn(querySnapshot);
+
+        // Mocking the result of the shoppers query
+        when(querySnapshot.getDocuments()).thenReturn(List.of(shopperQueryDocumentSnapshot));
+
+        when(shopperQueryDocumentSnapshot.toObject(Shopper.class)).thenReturn(shopper);
+
+        // When
+        ShopCartDetailDTO result = firestoreService.hydrateShopCartDTO(cartDocumentSnapshot);
+
+        // Then
+        assertNotNull(result);
+        assertFalse(result.getShoppers().isEmpty()); // Esta asserção agora deve passar
+        assertEquals(1, result.getShoppers().size());
+        assertEquals(shopper.getName(), result.getShoppers().get(0).getName());
+    }
+
+    @Test
+    void hydrateShopCartDTO_shouldReturnNull_whenCartDocumentIsNull() throws Exception {
+        // Given
+        when(documentSnapshot.toObject(ShopCart.class)).thenReturn(null);
+
+        // When
+        ShopCartDetailDTO result = firestoreService.hydrateShopCartDTO(documentSnapshot);
+
+        // Then
+        assertNull(result);
+    }
+
+    @Test
+    void hydrateShopCartDTO_shouldReturnDTO_withEmptyShoppers_whenNoShoppersFound() throws Exception {
+        // Given
+        when(documentSnapshot.exists()).thenReturn(true);
+        when(documentSnapshot.toObject(ShopCart.class)).thenReturn(shopCart);
+        when(documentSnapshot.getId()).thenReturn(cartId);
+
+        // Mocking the shoppers query to return no documents
+        Query shoppersQuery = mock(Query.class);
+        when(shoppersCollection.whereIn(FieldPath.documentId(), shopCart.getShopperIds())).thenReturn(shoppersQuery);
+        when(shoppersQuery.get()).thenReturn(apiFutureQuerySnapshot);
+        when(apiFutureQuerySnapshot.get()).thenReturn(querySnapshot);
+        when(querySnapshot.getDocuments()).thenReturn(Collections.emptyList());
+
+        // When
+        ShopCartDetailDTO result = firestoreService.hydrateShopCartDTO(documentSnapshot);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(cartId, result.getIdentifier());
+        assertTrue(result.getShoppers().isEmpty());
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Testes para o método public shareCartWithShopper()
+    //------------------------------------------------------------------------------------------------------------------
+
+    @Test
+    void shareCartWithShopper_shouldShareCart_whenAllConditionsMet() throws ExecutionException, InterruptedException {
+        // Given
+        // Configurar o mock do cart document para simular um cart que existe
+        when(shopcartsCollection.document(cartId)).thenReturn(cartDocRef);
+        when(cartDocRef.get()).thenReturn(apiFutureDocumentSnapshot);
+        when(apiFutureDocumentSnapshot.get()).thenReturn(cartDocumentSnapshot);
+        when(cartDocumentSnapshot.exists()).thenReturn(true);
+        when(cartDocumentSnapshot.toObject(ShopCart.class)).thenReturn(shopCart);
+
+        // Mock do método privado findShopperByEmail para retornar um shopper
+        FirestoreService mockFirestoreService = Mockito.spy(firestoreService);
+        doReturn(targetShopper).when(mockFirestoreService).findShopperByEmail(targetEmail);
+        doReturn(true).when(mockFirestoreService).canShareCart(any(ShopCart.class), anyString());
+
+        // Mock da operação de update
+        when(cartDocRef.update(any(Map.class))).thenReturn(apiFutureVoid);
+
+        // When
+        boolean result = mockFirestoreService.shareCartWithShopper(cartId, requesterShopperId, targetEmail, permission);
+
+        // Then
+        assertTrue(result);
+        verify(cartDocRef).update(any(Map.class));
+        assertTrue(shopCart.getShopperIds().contains(targetShopperId));
+        assertEquals(SharePermission.EDIT, shopCart.getPermissionForShopper(targetShopperId));
+    }
+
+    @Test
+    void shareCartWithShopper_shouldReturnFalse_whenCartNotFound() throws ExecutionException, InterruptedException {
+        // Given
+        when(shopcartsCollection.document(cartId)).thenReturn(cartDocRef);
+        when(cartDocRef.get()).thenReturn(apiFutureDocumentSnapshot);
+        when(apiFutureDocumentSnapshot.get()).thenReturn(cartDocumentSnapshot);
+        when(documentSnapshot.exists()).thenReturn(false);
+
+        // When
+        boolean result = firestoreService.shareCartWithShopper(cartId, requesterShopperId, targetEmail, permission);
+
+        // Then
+        assertFalse(result);
+        verify(cartDocRef, never()).update(any());
+    }
+
+    @Test
+    void shareCartWithShopper_shouldReturnFalse_whenRequesterHasNoPermission() throws ExecutionException, InterruptedException {
+        // Given
+        when(shopcartsCollection.document(cartId)).thenReturn(cartDocRef);
+        when(cartDocRef.get()).thenReturn(apiFutureDocumentSnapshot);
+        when(apiFutureDocumentSnapshot.get()).thenReturn(cartDocumentSnapshot);
+        when(cartDocumentSnapshot.exists()).thenReturn(true);
+        when(cartDocumentSnapshot.toObject(ShopCart.class)).thenReturn(shopCart);
+
+        // Mock do método privado canShareCart para retornar false
+        FirestoreService mockFirestoreService = Mockito.spy(firestoreService);
+        doReturn(false).when(mockFirestoreService).canShareCart(any(ShopCart.class), anyString());
+
+        // When
+        boolean result = mockFirestoreService.shareCartWithShopper(cartId, requesterShopperId, targetEmail, permission);
+
+        // Then
+        assertFalse(result);
+        verify(cartDocRef, never()).update(any());
+    }
+
+    @Test
+    void shareCartWithShopper_shouldReturnFalse_whenTargetShopperNotFound() throws ExecutionException, InterruptedException {
+        // Given
+        when(shopcartsCollection.document(cartId)).thenReturn(cartDocRef);
+        when(cartDocRef.get()).thenReturn(apiFutureDocumentSnapshot);
+        when(apiFutureDocumentSnapshot.get()).thenReturn(documentSnapshot);
+        when(cartDocumentSnapshot.exists()).thenReturn(true);
+        when(cartDocumentSnapshot.toObject(ShopCart.class)).thenReturn(shopCart);
+
+        // Mock do método privado findShopperByEmail para retornar null
+        FirestoreService mockFirestoreService = Mockito.spy(firestoreService);
+        doReturn(null).when(mockFirestoreService).findShopperByEmail(targetEmail);
+        doReturn(true).when(mockFirestoreService).canShareCart(any(ShopCart.class), anyString());
+
+        // When
+        boolean result = mockFirestoreService.shareCartWithShopper(cartId, requesterShopperId, targetEmail, permission);
+
+        // Then
+        assertFalse(result);
+        verify(cartDocRef, never()).update(any());
+    }
+
+    //------------------------------------------------------------------------------------------------------------------
+    // Testes de exceção para shareCartWithShopper()
+    //------------------------------------------------------------------------------------------------------------------
+
+    @Test
+    void shareCartWithShopper_shouldThrowIllegalArgumentException_whenAnyParameterIsNull() {
+        assertThrows(IllegalArgumentException.class, () -> firestoreService.shareCartWithShopper(null, requesterShopperId, targetEmail, permission));
+        assertThrows(IllegalArgumentException.class, () -> firestoreService.shareCartWithShopper(cartId, null, targetEmail, permission));
+        assertThrows(IllegalArgumentException.class, () -> firestoreService.shareCartWithShopper(cartId, requesterShopperId, null, permission));
+        assertThrows(IllegalArgumentException.class, () -> firestoreService.shareCartWithShopper(cartId, requesterShopperId, targetEmail, null));
+    }
+
+    @Test
+    void shareCartWithShopper_shouldThrowRuntimeException_onInterruptedException() throws ExecutionException, InterruptedException {
+        // Given
+        when(shopcartsCollection.document(cartId)).thenReturn(cartDocRef);
+        when(cartDocRef.get()).thenReturn(apiFutureDocumentSnapshot);
+        OngoingStubbing<DocumentSnapshot> stubbing = when(apiFutureDocumentSnapshot.get());
+        stubbing.thenThrow(new InterruptedException("Simulated interruption"));
+
+        // When & Then
+        assertThrows(RuntimeException.class, () -> firestoreService.shareCartWithShopper(cartId, requesterShopperId, targetEmail, permission));
+        verify(cartDocRef, never()).update(any());
+    }
+
+    @Test
+    void shareCartWithShopper_shouldThrowRuntimeException_onExecutionException() throws ExecutionException, InterruptedException {
+        // Given
+        when(shopcartsCollection.document(cartId)).thenReturn(cartDocRef);
+        when(cartDocRef.get()).thenReturn(apiFutureDocumentSnapshot);
+        OngoingStubbing<DocumentSnapshot> stubbing = when(apiFutureDocumentSnapshot.get());
+        stubbing.thenThrow(new ExecutionException("Simulated execution error", new Exception()));
+
+        // When & Then
+        assertThrows(RuntimeException.class, () -> firestoreService.shareCartWithShopper(cartId, requesterShopperId, targetEmail, permission));
+        verify(cartDocRef, never()).update(any());
     }
 }

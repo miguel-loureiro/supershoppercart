@@ -34,7 +34,7 @@ public class JwtTokenService {
     private SecretKey secretKey;
 
     @PostConstruct
-    private void initializeSecretKey() {
+    void initializeSecretKey() {
         try {
             logger.info("=== JWT Service Initialization Debug ===");
             logger.info("Secret key string: {}", secretKeyString != null ? "[PRESENT]" : "[NULL]");

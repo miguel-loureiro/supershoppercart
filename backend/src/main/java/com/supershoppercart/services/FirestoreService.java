@@ -1,5 +1,6 @@
 package com.supershoppercart.services;
 
+import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.*;
 import com.supershoppercart.dtos.ShopCartDetailDTO;
 import com.supershoppercart.dtos.ShopperSummaryDTO;
@@ -10,10 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 @Service
@@ -72,8 +71,12 @@ public class FirestoreService {
                 shopCart.addOrUpdatePermission(shopCart.getCreatedBy(), SharePermission.ADMIN);
             }
 
-            DocumentReference docRef = firestore.collection("shopcarts").add(shopCart).get();
+            CollectionReference shopcartsCollection = firestore.collection("shopcarts");
+            DocumentReference docRef = shopcartsCollection.document(shopCart.getId()); // Use the ID from the object
+            docRef.set(shopCart).get(); // Use set() to save the object at that specific ID
+
             return docRef.getId();
+
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt(); // preserve thread state
             throw new RuntimeException("Interrupted while saving shop cart", e);
@@ -319,7 +322,7 @@ public class FirestoreService {
     /**
      * Checks if a shopper can share a specific cart
      */
-    private boolean canShareCart(ShopCart cart, String shopperId) {
+    boolean canShareCart(ShopCart cart, String shopperId) {
         // Cart creator can always share
         if (shopperId.equals(cart.getCreatedBy())) {
             return true;
@@ -347,7 +350,7 @@ public class FirestoreService {
     /**
      * Finds a shopper by email address
      */
-    private Shopper findShopperByEmail(String email) {
+    Shopper findShopperByEmail(String email) {
         try {
             QuerySnapshot snapshot = firestore.collection("shoppers")
                     .whereEqualTo("email", email)
@@ -370,6 +373,8 @@ public class FirestoreService {
      * Enhanced method to save shop cart with creator information
      */
     public String saveShopCartWithCreator(ShopCart shopCart, String creatorId) {
+
+        shopCart.setId(UUID.randomUUID().toString());
         shopCart.setCreatedBy(creatorId);
 
         // Ensure creator is in shopperIds
@@ -383,5 +388,31 @@ public class FirestoreService {
         }
 
         return saveShopCart(shopCart);
+    }
+
+    /**
+     * Private helper to convert a ShopCart document into a fully populated DTO,
+     * including fetching and attaching all associated shopper details.
+     */
+    ShopCartDetailDTO hydrateShopCartDTO(DocumentSnapshot cartDoc) throws Exception {
+        ShopCart cart = cartDoc.toObject(ShopCart.class);
+        if (cart == null) return null;
+
+        ShopCartDetailDTO dto = new ShopCartDetailDTO(cartDoc.getId(), cart);
+
+        // Hydration Step: Fetch all shoppers in one go
+        if (cart.getShopperIds() != null && !cart.getShopperIds().isEmpty()) {
+            Query shoppersQuery = firestore.collection("shoppers").whereIn(FieldPath.documentId(), cart.getShopperIds());
+            ApiFuture<QuerySnapshot> shoppersFuture = shoppersQuery.get();
+            List<ShopperSummaryDTO> shopperDTOs = new ArrayList<>();
+            for (DocumentSnapshot shopperDoc : shoppersFuture.get().getDocuments()) {
+                Shopper shopper = shopperDoc.toObject(Shopper.class);
+                if (shopper != null) {
+                    shopperDTOs.add(new ShopperSummaryDTO(shopper));
+                }
+            }
+            dto.setShoppers(shopperDTOs);
+        }
+        return dto;
     }
 }

@@ -29,5 +29,4 @@
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/services/JwtTokenService.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/services/ShopCartService.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/services/ShopperService.java
-/Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/startup/TemplateInitializer.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/utils/RefreshTokenCleanupJob.java
