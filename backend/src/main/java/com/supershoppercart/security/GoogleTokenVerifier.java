@@ -21,6 +21,9 @@ public class GoogleTokenVerifier {
     @Value("${oauth.id}")
     private String googleClientId;
 
+    @Value("${app.env:prod}") // configurable via application.properties
+    private String appEnv;
+
     private GoogleIdTokenVerifier verifier;
 
     @PostConstruct
@@ -33,32 +36,38 @@ public class GoogleTokenVerifier {
 
     public GoogleIdToken.Payload verify(String idTokenString) {
         try {
+            // ✅ Development shortcut
+            if ("TEST_TOKEN".equals(idTokenString) && isDevEnvironment()) {
+                logger.warn("Using TEST_TOKEN bypass for development environment");
+                GoogleIdToken.Payload fakePayload = new GoogleIdToken.Payload();
+                fakePayload.setEmail("test@example.com");
+                fakePayload.set("name", "Test User");
+                return fakePayload;
+            }
+
+            // ✅ Normal Google verification
             GoogleIdToken idToken = verifier.verify(idTokenString);
-
             if (idToken != null) {
-
                 GoogleIdToken.Payload payload = idToken.getPayload();
                 logger.debug("Token verified successfully for user: {}", payload.getEmail());
                 return payload;
             } else {
-
                 logger.warn("Token verification failed - invalid token");
                 return null;
             }
         } catch (GeneralSecurityException e) {
-
             logger.error("Security exception during token verification", e);
             return null;
-
         } catch (IOException e) {
-
             logger.error("IO exception during token verification", e);
             return null;
-
         } catch (Exception e) {
-
             logger.error("Unexpected exception during token verification", e);
             return null;
         }
+    }
+
+    private boolean isDevEnvironment() {
+        return "dev".equalsIgnoreCase(appEnv) || "development".equalsIgnoreCase(appEnv);
     }
 }

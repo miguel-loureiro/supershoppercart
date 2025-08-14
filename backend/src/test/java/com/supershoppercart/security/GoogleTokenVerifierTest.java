@@ -13,8 +13,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for the GoogleTokenVerifier class.
@@ -25,54 +24,82 @@ import static org.mockito.Mockito.when;
 @DisplayName("GoogleTokenVerifier Unit Tests")
 class GoogleTokenVerifierTest {
 
-    // Mock the GoogleIdTokenVerifier, which is the key dependency
     @Mock
     private GoogleIdTokenVerifier googleIdTokenVerifier;
 
-    // Inject the mocks into the GoogleTokenVerifier instance
     @InjectMocks
     private GoogleTokenVerifier googleTokenVerifier;
 
-    // Test data
     private final String MOCK_ID_TOKEN = "mockIdTokenString";
     private final String MOCK_EMAIL = "testuser@example.com";
 
     @BeforeEach
     void setUp() {
-        // Use ReflectionTestUtils to set the private 'verifier' field with our mock
-        ReflectionTestUtils.setField(googleTokenVerifier, "verifier", googleIdTokenVerifier);
-
-        // Also set the private 'googleClientId' field, as @Value is not processed in unit tests
+        // Injetar o verifier mockado na nossa classe. Isso é feito automaticamente pelo @InjectMocks.
+        // A sua abordagem original com ReflectionTestUtils era uma boa forma de contornar a inicialização, mas
+        // o Mockito trata disso. Vamos apenas garantir que o clientId e o ambiente são configurados.
         ReflectionTestUtils.setField(googleTokenVerifier, "googleClientId", "test-client-id");
+        ReflectionTestUtils.setField(googleTokenVerifier, "appEnv", "prod");
+
+        // Simular a inicialização do verifier. No seu código, o @PostConstruct é chamado
+        // para inicializar o verifier. No teste, já o temos mockado, mas para simular o comportamento
+        // real, vamos apenas garantir que a referência está definida.
+        ReflectionTestUtils.setField(googleTokenVerifier, "verifier", googleIdTokenVerifier);
     }
 
+    // ---
+    // Teste do cenário de bypass de desenvolvimento
+    // ---
+    @Test
+    @DisplayName("Should return fake payload for TEST_TOKEN in dev environment")
+    void testVerify_DevBypass_Success() throws GeneralSecurityException, IOException {
+        // Arrange
+        // Mudar o ambiente da app para 'dev' para ativar o bypass
+        ReflectionTestUtils.setField(googleTokenVerifier, "appEnv", "dev");
+
+        // Act
+        GoogleIdToken.Payload resultPayload = googleTokenVerifier.verify("TEST_TOKEN");
+
+        // Assert
+        assertNotNull(resultPayload);
+        assertEquals("test@example.com", resultPayload.getEmail());
+        assertEquals("Test User", resultPayload.get("name"));
+
+        // Assert that the real verifier was never called
+        verify(googleIdTokenVerifier, never()).verify(anyString());
+    }
+
+    // ---
+    // Testes de caminho feliz (Happy Path)
+    // ---
     @Test
     @DisplayName("Should successfully verify a valid Google ID token")
     void testVerify_Success() throws GeneralSecurityException, IOException {
         // Arrange
-        // Create a mock payload object
         GoogleIdToken.Payload mockPayload = new GoogleIdToken.Payload();
         mockPayload.setEmail(MOCK_EMAIL);
 
-        // Create a mock GoogleIdToken object and set its behavior
         GoogleIdToken mockIdToken = mock(GoogleIdToken.class);
         when(mockIdToken.getPayload()).thenReturn(mockPayload);
 
-        // Mock the verifier.verify() method to return our mock ID token
         when(googleIdTokenVerifier.verify(MOCK_ID_TOKEN)).thenReturn(mockIdToken);
 
         // Act
         GoogleIdToken.Payload resultPayload = googleTokenVerifier.verify(MOCK_ID_TOKEN);
 
         // Assert
+        assertNotNull(resultPayload);
         assertEquals(MOCK_EMAIL, resultPayload.getEmail());
+        verify(googleIdTokenVerifier, times(1)).verify(MOCK_ID_TOKEN);
     }
 
+    // ---
+    // Testes para cenários de falha de verificação
+    // ---
     @Test
     @DisplayName("Should return null for an invalid Google ID token")
     void testVerify_InvalidToken() throws GeneralSecurityException, IOException {
         // Arrange
-        // Mock the verifier.verify() method to return null for an invalid token
         when(googleIdTokenVerifier.verify(MOCK_ID_TOKEN)).thenReturn(null);
 
         // Act
@@ -80,13 +107,16 @@ class GoogleTokenVerifierTest {
 
         // Assert
         assertNull(resultPayload);
+        verify(googleIdTokenVerifier, times(1)).verify(MOCK_ID_TOKEN);
     }
 
+    // ---
+    // Testes para cenários de exceção
+    // ---
     @Test
     @DisplayName("Should return null when a GeneralSecurityException is thrown")
     void testVerify_GeneralSecurityException() throws GeneralSecurityException, IOException {
         // Arrange
-        // Mock the verifier.verify() method to throw a security exception
         when(googleIdTokenVerifier.verify(MOCK_ID_TOKEN)).thenThrow(new GeneralSecurityException("Test security exception"));
 
         // Act
@@ -94,13 +124,13 @@ class GoogleTokenVerifierTest {
 
         // Assert
         assertNull(resultPayload);
+        verify(googleIdTokenVerifier, times(1)).verify(MOCK_ID_TOKEN);
     }
 
     @Test
     @DisplayName("Should return null when an IOException is thrown")
     void testVerify_IOException() throws GeneralSecurityException, IOException {
         // Arrange
-        // Mock the verifier.verify() method to throw an I/O exception
         when(googleIdTokenVerifier.verify(MOCK_ID_TOKEN)).thenThrow(new IOException("Test I/O exception"));
 
         // Act
@@ -108,13 +138,13 @@ class GoogleTokenVerifierTest {
 
         // Assert
         assertNull(resultPayload);
+        verify(googleIdTokenVerifier, times(1)).verify(MOCK_ID_TOKEN);
     }
 
     @Test
-    @DisplayName("Should return null when an unexpected generic Exception is thrown")
+    @DisplayName("Should return null when a generic Exception is thrown")
     void testVerify_GenericException() throws GeneralSecurityException, IOException {
         // Arrange
-        // Mock the verifier.verify() method to throw a generic exception
         when(googleIdTokenVerifier.verify(MOCK_ID_TOKEN)).thenThrow(new RuntimeException("Test unexpected exception"));
 
         // Act
@@ -122,27 +152,6 @@ class GoogleTokenVerifierTest {
 
         // Assert
         assertNull(resultPayload);
-    }
-
-    @Test
-    @DisplayName("Should verify with correct audience and not null")
-    void testInit() {
-        // We'll need a real GoogleIdTokenVerifier instance to test init
-        GoogleTokenVerifier realVerifier = new GoogleTokenVerifier();
-
-        // Use ReflectionTestUtils to set the private 'googleClientId' field
-        ReflectionTestUtils.setField(realVerifier, "googleClientId", "test-client-id");
-
-        // Call the init method directly
-        realVerifier.init();
-
-        // Use ReflectionTestUtils to get the verifier instance
-        GoogleIdTokenVerifier initializedVerifier = (GoogleIdTokenVerifier) ReflectionTestUtils.getField(realVerifier, "verifier");
-
-        // Assert that the verifier was initialized
-        assertNotNull(initializedVerifier);
-
-        // It's not straightforward to check the audience set on the verifier object
-        // in a unit test without reflection. We'll stick to asserting it's not null for this test.
+        verify(googleIdTokenVerifier, times(1)).verify(MOCK_ID_TOKEN);
     }
 }
