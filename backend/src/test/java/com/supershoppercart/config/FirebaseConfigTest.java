@@ -9,19 +9,19 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.test.util.ReflectionTestUtils;
 import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Map;
+import java.nio.file.Files;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -498,18 +498,415 @@ class FirebaseConfigTest {
                 "Token expiration should be set to Long.MAX_VALUE");
     }
 
-    // --- Helper method for setting environment variables in tests ---
-    private void setEnvironmentVariable(String name, String value) {
-        try {
-            Map<String, String> env = System.getenv();
-            Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
-            Field theEnvironmentField = processEnvironmentClass.getDeclaredField("theEnvironment");
-            theEnvironmentField.setAccessible(true);
-            Map<String, String> writableEnv = (Map<String, String>) theEnvironmentField.get(null);
-            writableEnv.put(name, value);
-        } catch (Exception e) {
-            // If we can't set the environment variable, skip the test or use alternative approach
-            assumeTrue(false, "Cannot set environment variable for this test");
+    // --- Tests for GOOGLE_APPLICATION_CREDENTIALS support ---
+
+    @Test
+    @DisplayName("firestoreProduction should use GOOGLE_APPLICATION_CREDENTIALS when available")
+    void firestoreProduction_successWithGoogleApplicationCredentials() throws IOException {
+        // Arrange
+        String credentialsPath = "/path/to/service-account.json";
+        setEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath);
+
+        try (MockedStatic<GoogleCredentials> mockedCredentials = mockStatic(GoogleCredentials.class);
+             MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class);
+             MockedStatic<FirestoreOptions> mockedFirestoreOptions = mockStatic(FirestoreOptions.class);
+             MockedStatic<FirebaseOptions> mockedFirebaseOptions = mockStatic(FirebaseOptions.class);
+             MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
+
+            // Mock file input stream creation
+            FileInputStream mockFileInputStream = mock(FileInputStream.class);
+            try (MockedConstruction<FileInputStream> mockedFileInputStream = mockConstruction(FileInputStream.class,
+                    (mock, context) -> {
+                        when(mock.read()).thenReturn(-1); // Simulate empty file for simplicity
+                    })) {
+
+                // Mock credentials
+                GoogleCredentials mockCreds = mock(GoogleCredentials.class);
+                mockedCredentials.when(() -> GoogleCredentials.fromStream(any(FileInputStream.class))).thenReturn(mockCreds);
+
+                // Mock Firebase initialization
+                mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
+                FirebaseOptions.Builder firebaseBuilder = mock(FirebaseOptions.Builder.class);
+                FirebaseOptions firebaseOptions = mock(FirebaseOptions.class);
+
+                mockedFirebaseOptions.when(FirebaseOptions::builder).thenReturn(firebaseBuilder);
+                when(firebaseBuilder.setCredentials(mockCreds)).thenReturn(firebaseBuilder);
+                when(firebaseBuilder.setProjectId(productionProjectId)).thenReturn(firebaseBuilder);
+                when(firebaseBuilder.build()).thenReturn(firebaseOptions);
+
+                // Mock Firestore initialization
+                FirestoreOptions.Builder firestoreBuilder = mock(FirestoreOptions.Builder.class);
+                FirestoreOptions firestoreOptions = mock(FirestoreOptions.class);
+                Firestore mockFirestore = mock(Firestore.class);
+
+                mockedFirestoreOptions.when(FirestoreOptions::newBuilder).thenReturn(firestoreBuilder);
+                when(firestoreBuilder.setProjectId(productionProjectId)).thenReturn(firestoreBuilder);
+                when(firestoreBuilder.setCredentials(mockCreds)).thenReturn(firestoreBuilder);
+                when(firestoreBuilder.build()).thenReturn(firestoreOptions);
+                when(firestoreOptions.getService()).thenReturn(mockFirestore);
+
+                // Act
+                Firestore resultFirestore = firebaseConfig.firestoreProduction();
+
+                // Assert
+                assertNotNull(resultFirestore);
+                assertEquals(mockFirestore, resultFirestore);
+
+                // Verify that GOOGLE_APPLICATION_CREDENTIALS path was used
+                mockedCredentials.verify(() -> GoogleCredentials.fromStream(any(FileInputStream.class)), times(1));
+                // Verify that Base64 and file fallback were not used
+                verify(resourceLoader, never()).getResource(anyString());
+            }
         }
     }
-}
+
+    @Test
+    @DisplayName("firestoreDev should use GOOGLE_APPLICATION_CREDENTIALS when available")
+    void firestoreDev_successWithGoogleApplicationCredentials() throws IOException {
+        // Arrange
+        String credentialsPath = "/path/to/dev-service-account.json";
+        setEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath);
+
+        try (MockedStatic<GoogleCredentials> mockedCredentials = mockStatic(GoogleCredentials.class);
+             MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class);
+             MockedStatic<FirestoreOptions> mockedFirestoreOptions = mockStatic(FirestoreOptions.class);
+             MockedStatic<FirebaseOptions> mockedFirebaseOptions = mockStatic(FirebaseOptions.class)) {
+
+            try (MockedConstruction<FileInputStream> mockedFileInputStream = mockConstruction(FileInputStream.class)) {
+
+                // Mock credentials
+                GoogleCredentials mockCreds = mock(GoogleCredentials.class);
+                mockedCredentials.when(() -> GoogleCredentials.fromStream(any(FileInputStream.class))).thenReturn(mockCreds);
+
+                // Mock Firebase initialization
+                mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
+                FirebaseOptions.Builder firebaseBuilder = mock(FirebaseOptions.Builder.class);
+                FirebaseOptions firebaseOptions = mock(FirebaseOptions.class);
+
+                mockedFirebaseOptions.when(FirebaseOptions::builder).thenReturn(firebaseBuilder);
+                when(firebaseBuilder.setCredentials(mockCreds)).thenReturn(firebaseBuilder);
+                when(firebaseBuilder.setProjectId(devProjectId)).thenReturn(firebaseBuilder);
+                when(firebaseBuilder.build()).thenReturn(firebaseOptions);
+
+                // Mock Firestore initialization
+                FirestoreOptions.Builder firestoreBuilder = mock(FirestoreOptions.Builder.class);
+                FirestoreOptions firestoreOptions = mock(FirestoreOptions.class);
+                Firestore mockFirestore = mock(Firestore.class);
+
+                mockedFirestoreOptions.when(FirestoreOptions::newBuilder).thenReturn(firestoreBuilder);
+                when(firestoreBuilder.setProjectId(devProjectId)).thenReturn(firestoreBuilder);
+                when(firestoreBuilder.setCredentials(mockCreds)).thenReturn(firestoreBuilder);
+                when(firestoreBuilder.build()).thenReturn(firestoreOptions);
+                when(firestoreOptions.getService()).thenReturn(mockFirestore);
+
+                // Act
+                Firestore resultFirestore = firebaseConfig.firestoreDev();
+
+                // Assert
+                assertNotNull(resultFirestore);
+                assertEquals(mockFirestore, resultFirestore);
+
+                // Verify that GOOGLE_APPLICATION_CREDENTIALS was used
+                mockedCredentials.verify(() -> GoogleCredentials.fromStream(any(FileInputStream.class)), times(1));
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("firestoreProduction should throw IOException when GOOGLE_APPLICATION_CREDENTIALS file is invalid")
+    void firestoreProduction_googleCredentialsFileInvalid_throwsIOException() throws IOException {
+        // Arrange
+        String credentialsPath = "/path/to/invalid-service-account.json";
+        setEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath);
+
+        try (MockedStatic<GoogleCredentials> mockedCredentials = mockStatic(GoogleCredentials.class);
+             MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class)) {
+
+            mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
+
+            try (MockedConstruction<FileInputStream> mockedFileInputStream = mockConstruction(FileInputStream.class)) {
+                // Mock credentials loading to throw IOException
+                mockedCredentials.when(() -> GoogleCredentials.fromStream(any(FileInputStream.class)))
+                        .thenThrow(new IOException("Invalid credentials file"));
+
+                // Act & Assert
+                IOException thrown = assertThrows(IOException.class, () ->
+                        firebaseConfig.firestoreProduction()
+                );
+
+                assertTrue(thrown.getMessage().contains("Invalid credentials file"));
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("firestoreProduction should fallback to Base64 when GOOGLE_APPLICATION_CREDENTIALS is blank")
+    void firestoreProduction_googleCredentialsBlank_fallbackToBase64() throws IOException {
+        // Arrange
+        setEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", "");
+
+        try (MockedStatic<GoogleCredentials> mockedCredentials = mockStatic(GoogleCredentials.class);
+             MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class);
+             MockedStatic<FirestoreOptions> mockedFirestoreOptions = mockStatic(FirestoreOptions.class);
+             MockedStatic<FirebaseOptions> mockedFirebaseOptions = mockStatic(FirebaseOptions.class);
+             MockedStatic<Base64> mockedBase64 = mockStatic(Base64.class)) {
+
+            // Mock Base64 decoding
+            Base64.Decoder mockDecoder = mock(Base64.Decoder.class);
+            mockedBase64.when(Base64::getDecoder).thenReturn(mockDecoder);
+            when(mockDecoder.decode(serviceAccountB64Prod)).thenReturn("{\"type\":\"service_account\"}".getBytes());
+
+            // Mock credentials
+            GoogleCredentials mockCreds = mock(GoogleCredentials.class);
+            mockedCredentials.when(() -> GoogleCredentials.fromStream(any(InputStream.class))).thenReturn(mockCreds);
+
+            // Mock Firebase initialization
+            mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
+            FirebaseOptions.Builder firebaseBuilder = mock(FirebaseOptions.Builder.class);
+            FirebaseOptions firebaseOptions = mock(FirebaseOptions.class);
+
+            mockedFirebaseOptions.when(FirebaseOptions::builder).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.setCredentials(mockCreds)).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.setProjectId(productionProjectId)).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.build()).thenReturn(firebaseOptions);
+
+            // Mock Firestore initialization
+            FirestoreOptions.Builder firestoreBuilder = mock(FirestoreOptions.Builder.class);
+            FirestoreOptions firestoreOptions = mock(FirestoreOptions.class);
+            Firestore mockFirestore = mock(Firestore.class);
+
+            mockedFirestoreOptions.when(FirestoreOptions::newBuilder).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.setProjectId(productionProjectId)).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.setCredentials(mockCreds)).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.build()).thenReturn(firestoreOptions);
+            when(firestoreOptions.getService()).thenReturn(mockFirestore);
+
+            // Act
+            Firestore resultFirestore = firebaseConfig.firestoreProduction();
+
+            // Assert
+            assertNotNull(resultFirestore);
+            assertEquals(mockFirestore, resultFirestore);
+
+            // Verify Base64 decoding was used (not GOOGLE_APPLICATION_CREDENTIALS)
+            mockedBase64.verify(Base64::getDecoder, times(1));
+            verify(mockDecoder).decode(serviceAccountB64Prod);
+        }
+    }
+
+    @Test
+    @DisplayName("firestoreProduction should log warning when FIRESTORE_EMULATOR_HOST is set")
+    void firestoreProduction_firestoreEmulatorHostSet_logsWarning() throws IOException {
+        // Arrange
+        String emulatorHost = "localhost:8080";
+        setEnvironmentVariable("FIRESTORE_EMULATOR_HOST", emulatorHost);
+
+        try (MockedStatic<GoogleCredentials> mockedCredentials = mockStatic(GoogleCredentials.class);
+             MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class);
+             MockedStatic<FirestoreOptions> mockedFirestoreOptions = mockStatic(FirestoreOptions.class);
+             MockedStatic<FirebaseOptions> mockedFirebaseOptions = mockStatic(FirebaseOptions.class);
+             MockedStatic<Base64> mockedBase64 = mockStatic(Base64.class)) {
+
+            // Mock Base64 decoding
+            Base64.Decoder mockDecoder = mock(Base64.Decoder.class);
+            mockedBase64.when(Base64::getDecoder).thenReturn(mockDecoder);
+            when(mockDecoder.decode(serviceAccountB64Prod)).thenReturn("{\"type\":\"service_account\"}".getBytes());
+
+            // Mock credentials
+            GoogleCredentials mockCreds = mock(GoogleCredentials.class);
+            mockedCredentials.when(() -> GoogleCredentials.fromStream(any(InputStream.class))).thenReturn(mockCreds);
+
+            // Mock Firebase initialization
+            mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
+            FirebaseOptions.Builder firebaseBuilder = mock(FirebaseOptions.Builder.class);
+            FirebaseOptions firebaseOptions = mock(FirebaseOptions.class);
+
+            mockedFirebaseOptions.when(FirebaseOptions::builder).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.setCredentials(mockCreds)).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.setProjectId(productionProjectId)).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.build()).thenReturn(firebaseOptions);
+
+            // Mock Firestore initialization
+            FirestoreOptions.Builder firestoreBuilder = mock(FirestoreOptions.Builder.class);
+            FirestoreOptions firestoreOptions = mock(FirestoreOptions.class);
+            Firestore mockFirestore = mock(Firestore.class);
+
+            mockedFirestoreOptions.when(FirestoreOptions::newBuilder).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.setProjectId(productionProjectId)).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.setCredentials(mockCreds)).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.build()).thenReturn(firestoreOptions);
+            when(firestoreOptions.getService()).thenReturn(mockFirestore);
+
+            // Act
+            Firestore resultFirestore = firebaseConfig.firestoreProduction();
+
+            // Assert
+            assertNotNull(resultFirestore);
+            assertEquals(mockFirestore, resultFirestore);
+
+            // Note: In a real scenario, you might want to capture and verify the log output
+            // This test ensures the method completes successfully despite the warning
+        }
+    }
+
+    @Test
+    @DisplayName("firestoreProduction should handle existing FirebaseApp correctly")
+    void firestoreProduction_existingFirebaseApp_skipsInitialization() throws IOException {
+        // Arrange
+        FirebaseApp existingApp = mock(FirebaseApp.class);
+
+        try (MockedStatic<GoogleCredentials> mockedCredentials = mockStatic(GoogleCredentials.class);
+             MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class);
+             MockedStatic<FirestoreOptions> mockedFirestoreOptions = mockStatic(FirestoreOptions.class);
+             MockedStatic<Base64> mockedBase64 = mockStatic(Base64.class)) {
+
+            // Mock that a FirebaseApp already exists
+            mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Arrays.asList(existingApp));
+
+            // Mock Base64 decoding
+            Base64.Decoder mockDecoder = mock(Base64.Decoder.class);
+            mockedBase64.when(Base64::getDecoder).thenReturn(mockDecoder);
+            when(mockDecoder.decode(serviceAccountB64Prod)).thenReturn("{\"type\":\"service_account\"}".getBytes());
+
+            // Mock credentials
+            GoogleCredentials mockCreds = mock(GoogleCredentials.class);
+            mockedCredentials.when(() -> GoogleCredentials.fromStream(any(InputStream.class))).thenReturn(mockCreds);
+
+            // Mock Firestore initialization
+            FirestoreOptions.Builder firestoreBuilder = mock(FirestoreOptions.Builder.class);
+            FirestoreOptions firestoreOptions = mock(FirestoreOptions.class);
+            Firestore mockFirestore = mock(Firestore.class);
+
+            mockedFirestoreOptions.when(FirestoreOptions::newBuilder).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.setProjectId(productionProjectId)).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.setCredentials(mockCreds)).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.build()).thenReturn(firestoreOptions);
+            when(firestoreOptions.getService()).thenReturn(mockFirestore);
+
+            // Act
+            Firestore resultFirestore = firebaseConfig.firestoreProduction();
+
+            // Assert
+            assertNotNull(resultFirestore);
+            assertEquals(mockFirestore, resultFirestore);
+
+            // Verify that FirebaseApp.initializeApp was never called (since app already exists)
+            mockedFirebaseApp.verify(() -> FirebaseApp.initializeApp(any(FirebaseOptions.class)), never());
+        }
+    }
+
+    @Test
+    @DisplayName("initializeFirestore should throw IllegalArgumentException when Base64 decoding fails")
+    void initializeFirestore_base64DecodingFails_throwsIllegalArgumentException() throws IOException {
+        // Arrange
+        clearEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+
+        try (MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class);
+             MockedStatic<Base64> mockedBase64 = mockStatic(Base64.class)) {
+
+            mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
+
+            // Mock Base64 decoding to fail
+            Base64.Decoder mockDecoder = mock(Base64.Decoder.class);
+            mockedBase64.when(Base64::getDecoder).thenReturn(mockDecoder);
+            when(mockDecoder.decode(serviceAccountB64Prod)).thenThrow(new IllegalArgumentException("Invalid Base64"));
+
+            // Act & Assert
+            IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () ->
+                    firebaseConfig.firestoreProduction()
+            );
+
+            assertTrue(thrown.getMessage().contains("Invalid Base64"));
+        }
+    }
+
+    @Test
+    @DisplayName("initializeFirestore should handle all credential methods being unavailable")
+    void initializeFirestore_allCredentialMethodsUnavailable_throwsIOException() throws IOException {
+        // Arrange
+        clearEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+        ReflectionTestUtils.setField(firebaseConfig, "serviceAccountB64Prod", "");
+
+        Resource mockResource = mock(Resource.class);
+        when(resourceLoader.getResource(serviceAccountPathProd)).thenReturn(mockResource);
+        when(mockResource.exists()).thenReturn(false);
+
+        try (MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class)) {
+            mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
+
+            // Act & Assert
+            IOException thrown = assertThrows(IOException.class, () ->
+                    firebaseConfig.firestoreProduction()
+            );
+
+            assertTrue(thrown.getMessage().contains("Firebase service account file not found"));
+        }
+    }
+
+    @Test
+    @DisplayName("firestoreDev should fallback through all credential methods correctly")
+    void firestoreDev_credentialFallbackChain_success() throws IOException {
+        // Arrange - Clear all primary credential sources to test file fallback
+        clearEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+        ReflectionTestUtils.setField(firebaseConfig, "serviceAccountB64Dev", "");
+
+        Resource mockResource = mock(Resource.class);
+        when(resourceLoader.getResource(serviceAccountPathDev)).thenReturn(mockResource);
+        when(mockResource.exists()).thenReturn(true);
+        when(mockResource.getInputStream()).thenReturn(new ByteArrayInputStream("{\"type\":\"service_account\"}".getBytes()));
+
+        try (MockedStatic<GoogleCredentials> mockedCredentials = mockStatic(GoogleCredentials.class);
+             MockedStatic<FirebaseApp> mockedFirebaseApp = mockStatic(FirebaseApp.class);
+             MockedStatic<FirestoreOptions> mockedFirestoreOptions = mockStatic(FirestoreOptions.class);
+             MockedStatic<FirebaseOptions> mockedFirebaseOptions = mockStatic(FirebaseOptions.class)) {
+
+            GoogleCredentials mockCreds = mock(GoogleCredentials.class);
+            mockedCredentials.when(() -> GoogleCredentials.fromStream(any(InputStream.class))).thenReturn(mockCreds);
+            mockedFirebaseApp.when(FirebaseApp::getApps).thenReturn(Collections.emptyList());
+
+            // Mock Firebase initialization
+            FirebaseOptions.Builder firebaseBuilder = mock(FirebaseOptions.Builder.class);
+            FirebaseOptions firebaseOptions = mock(FirebaseOptions.class);
+            mockedFirebaseOptions.when(FirebaseOptions::builder).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.setCredentials(mockCreds)).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.setProjectId(devProjectId)).thenReturn(firebaseBuilder);
+            when(firebaseBuilder.build()).thenReturn(firebaseOptions);
+
+            // Mock Firestore initialization
+            FirestoreOptions.Builder firestoreBuilder = mock(FirestoreOptions.Builder.class);
+            FirestoreOptions firestoreOptions = mock(FirestoreOptions.class);
+            Firestore mockFirestore = mock(Firestore.class);
+
+            mockedFirestoreOptions.when(FirestoreOptions::newBuilder).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.setProjectId(devProjectId)).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.setCredentials(mockCreds)).thenReturn(firestoreBuilder);
+            when(firestoreBuilder.build()).thenReturn(firestoreOptions);
+            when(firestoreOptions.getService()).thenReturn(mockFirestore);
+
+            // Act
+            Firestore resultFirestore = firebaseConfig.firestoreDev();
+
+            // Assert
+            assertNotNull(resultFirestore);
+            assertEquals(mockFirestore, resultFirestore);
+            verify(resourceLoader).getResource(serviceAccountPathDev);
+        }
+    }
+
+
+        // --- Helper method for setting environment variables in tests ---
+        private void setEnvironmentVariable (String name, String value){
+            try {
+                Map<String, String> env = System.getenv();
+                Class<?> processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment");
+                Field theEnvironmentField = processEnvironmentClass.getDeclaredField("theEnvironment");
+                theEnvironmentField.setAccessible(true);
+                Map<String, String> writableEnv = (Map<String, String>) theEnvironmentField.get(null);
+                writableEnv.put(name, value);
+            } catch (Exception e) {
+                // If we can't set the environment variable, skip the test or use alternative approach
+                assumeTrue(false, "Cannot set environment variable for this test");
+            }
+        }
+    }
+

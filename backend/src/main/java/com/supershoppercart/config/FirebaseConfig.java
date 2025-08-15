@@ -15,6 +15,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
 import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Date;
@@ -156,13 +157,21 @@ public class FirebaseConfig {
 
         // Initialize credentials based on the environment variable first.
         GoogleCredentials credentials;
+        String googleCredentialsPath = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+
         try {
-            if (serviceAccountB64 != null && !serviceAccountB64.isBlank()) {
-                logger.info("Using service account key from environment variable.");
+            if (googleCredentialsPath != null && !googleCredentialsPath.isBlank()) {
+                // Method 1: Use the standard GOOGLE_APPLICATION_CREDENTIALS environment variable
+                logger.info("Using credentials from GOOGLE_APPLICATION_CREDENTIALS environment variable: '{}'", googleCredentialsPath);
+                credentials = GoogleCredentials.fromStream(new FileInputStream(googleCredentialsPath));
+            } else if (serviceAccountB64 != null && !serviceAccountB64.isBlank()) {
+                // Method 2: Fallback to a base64 encoded string from a custom environment variable
+                logger.warn("GOOGLE_APPLICATION_CREDENTIALS not set. Using service account key from custom environment variable.");
                 byte[] decodedBytes = Base64.getDecoder().decode(serviceAccountB64);
                 credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(decodedBytes));
             } else {
-                logger.warn("Environment variable for service account key not found. Falling back to file path: '{}'", serviceAccountPath);
+                // Method 3: Fallback to a file on the classpath or local file system
+                logger.warn("Neither environment variable found. Falling back to file path: '{}'", serviceAccountPath);
                 Resource resource = resourceLoader.getResource(serviceAccountPath);
                 if (!resource.exists()) {
                     logger.error("CRITICAL ERROR: Firebase service account file not found at: '{}'", serviceAccountPath);
