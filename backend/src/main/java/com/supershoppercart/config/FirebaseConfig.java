@@ -32,17 +32,24 @@ public class FirebaseConfig {
     private String emulatorHostProp;
 
     // --- Production Configuration Properties ---
-    @Value("${firebase.project.id:supershoppercart}")
+    @Value("${firebase.project.id.prod:supershoppercart}")
     private String productionProjectIdProp;
 
-    // This property is for a local dev setup where the key might still be on the classpath.
-    // In production, we prefer the environment variable below.
-    @Value("${firebase.service.account.path:classpath:firebase-service-account-prod.json}")
-    private String serviceAccountPathProp;
+    @Value("${firebase.service.account.path.prod:classpath:firebase-service-account-prod.json}")
+    private String serviceAccountPathProd;
 
-    // --- New Environment Variable for Production Secret ---
-    @Value("${FIREBASE_SERVICE_ACCOUNT_B64:}")
-    private String serviceAccountB64;
+    @Value("${FIREBASE_SERVICE_ACCOUNT_B64_PROD:}")
+    private String serviceAccountB64Prod;
+
+    // --- Development Configuration Properties ---
+    @Value("${firebase.project.id.dev:devsupershoppercart}")
+    private String devProjectIdProp;
+
+    @Value("${firebase.service.account.path.dev:classpath:firebase-service-account-dev.json}")
+    private String serviceAccountPathDev;
+
+    @Value("${FIREBASE_SERVICE_ACCOUNT_B64_DEV:}")
+    private String serviceAccountB64Dev;
 
     private final ResourceLoader resourceLoader;
 
@@ -50,7 +57,7 @@ public class FirebaseConfig {
         this.resourceLoader = resourceLoader;
     }
 
-    // Custom NoCredentials class for emulator connection (same as your working test)
+    // Custom NoCredentials class for emulator connection
     static class NoCredentials extends GoogleCredentials {
         private static final NoCredentials INSTANCE = new NoCredentials();
 
@@ -116,34 +123,50 @@ public class FirebaseConfig {
     }
 
     /**
-     * Configures and provides a Firestore client bean for the production environment.
-     * This bean is active when the "dev-emulator" Spring profile is NOT active.
+     * Configures and provides a Firestore client bean for the development environment.
+     * This bean is active only when the "dev" Spring profile is active.
      */
     @Bean
-    @Profile("!dev-emulator")
-    public Firestore firestoreProduction() throws IOException {
-        logger.info("🚀 Configuring Firestore for PRODUCTION profile...");
+    @Profile("dev")
+    public Firestore firestoreDev() throws IOException {
+        logger.info("🚀 Configuring Firestore for 'dev' profile...");
+        return initializeFirestore(devProjectIdProp, serviceAccountB64Dev, serviceAccountPathDev);
+    }
 
-        // Ensure FIRESTORE_EMULATOR_HOST environment variable is NOT set for production
+    /**
+     * Configures and provides a Firestore client bean for the production environment.
+     * This bean is active only when the "prod" Spring profile is active.
+     */
+    @Bean
+    @Profile("prod")
+    public Firestore firestoreProduction() throws IOException {
+        logger.info("🚀 Configuring Firestore for 'prod' profile...");
+        return initializeFirestore(productionProjectIdProp, serviceAccountB64Prod, serviceAccountPathProd);
+    }
+
+    /**
+     * Private helper method to initialize the Firestore client.
+     */
+    private Firestore initializeFirestore(String projectId, String serviceAccountB64, String serviceAccountPath) throws IOException {
+        // Ensure FIRESTORE_EMULATOR_HOST environment variable is NOT set
         String envEmulatorHost = System.getenv("FIRESTORE_EMULATOR_HOST");
         if (envEmulatorHost != null && !envEmulatorHost.isBlank()) {
-            logger.warn("WARNING: FIRESTORE_EMULATOR_HOST environment variable is set to '{}' in production profile. " +
-                    "This could cause unintended connections to an emulator. Please unset it for production.", envEmulatorHost);
+            logger.warn("WARNING: FIRESTORE_EMULATOR_HOST is set to '{}'. Unset it to prevent unintended emulator connections.", envEmulatorHost);
         }
 
         // Initialize credentials based on the environment variable first.
         GoogleCredentials credentials;
         try {
             if (serviceAccountB64 != null && !serviceAccountB64.isBlank()) {
-                logger.info("Using service account key from FIREBASE_SERVICE_ACCOUNT_B64 environment variable.");
+                logger.info("Using service account key from environment variable.");
                 byte[] decodedBytes = Base64.getDecoder().decode(serviceAccountB64);
                 credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(decodedBytes));
             } else {
-                logger.warn("FIREBASE_SERVICE_ACCOUNT_B64 not found. Falling back to service account file path: '{}'", serviceAccountPathProp);
-                Resource resource = resourceLoader.getResource(serviceAccountPathProp);
+                logger.warn("Environment variable for service account key not found. Falling back to file path: '{}'", serviceAccountPath);
+                Resource resource = resourceLoader.getResource(serviceAccountPath);
                 if (!resource.exists()) {
-                    logger.error("CRITICAL ERROR: Firebase service account file not found at: '{}'", serviceAccountPathProp);
-                    throw new IOException("Firebase service account file not found at: " + serviceAccountPathProp);
+                    logger.error("CRITICAL ERROR: Firebase service account file not found at: '{}'", serviceAccountPath);
+                    throw new IOException("Firebase service account file not found at: " + serviceAccountPath);
                 }
                 credentials = GoogleCredentials.fromStream(resource.getInputStream());
             }
@@ -152,25 +175,24 @@ public class FirebaseConfig {
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseOptions options = FirebaseOptions.builder()
                         .setCredentials(credentials)
-                        .setProjectId(productionProjectIdProp)
+                        .setProjectId(projectId)
                         .build();
                 FirebaseApp.initializeApp(options);
-                logger.info("FirebaseApp initialized for production environment.");
+                logger.info("FirebaseApp initialized for project '{}'.", projectId);
             } else {
-                logger.info("FirebaseApp already initialized for production.");
+                logger.info("FirebaseApp already initialized for project '{}'.", projectId);
             }
 
             // Create and return Firestore instance
             Firestore firestore = FirestoreOptions.newBuilder()
-                    .setProjectId(productionProjectIdProp)
+                    .setProjectId(projectId)
                     .setCredentials(credentials)
                     .build().getService();
 
-            logger.info("✅ Firestore client initialized for PRODUCTION. Host: '{}', Project ID: '{}'",
-                    firestore.getOptions().getHost(), firestore.getOptions().getProjectId());
+            logger.info("✅ Firestore client initialized for project '{}'.", projectId);
             return firestore;
         } catch (IOException e) {
-            logger.error("CRITICAL ERROR: Error initializing FirebaseApp for production: {}", e.getMessage(), e);
+            logger.error("CRITICAL ERROR: Error initializing FirebaseApp for project '{}': {}", projectId, e.getMessage(), e);
             throw e;
         }
     }
