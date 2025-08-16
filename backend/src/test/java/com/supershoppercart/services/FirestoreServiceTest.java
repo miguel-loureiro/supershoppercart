@@ -79,6 +79,8 @@ public class FirestoreServiceTest {
     private ApiFuture<Void> apiFutureVoid;
     @Mock
     private QueryDocumentSnapshot shopperQueryDocumentSnapshot;
+    @Mock
+    private FirestoreOptions mockFirestoreOptions;
 
     @InjectMocks
     private FirestoreService firestoreService;
@@ -237,7 +239,8 @@ public class FirestoreServiceTest {
             String creatorId = TEST_SHOPPER_ID;
             String sharedId = "sharedId456";
             testShopCart.setShopperIds(List.of(creatorId, sharedId));
-
+            when(firestore.getOptions()).thenReturn(mockFirestoreOptions);
+            when(mockFirestoreOptions.getProjectId()).thenReturn("test-project");
             // Mock the successful future result
             when(writeResultFuture.get()).thenReturn(null); // Return value of WriteResult doesn't matter here
             when(documentReference.getId()).thenReturn(TEST_CART_ID);
@@ -262,6 +265,8 @@ public class FirestoreServiceTest {
         @DisplayName("Should throw RuntimeException when Firestore operation fails with ExecutionException")
         void saveShopCart_throwsRuntimeException_onExecutionException() throws ExecutionException, InterruptedException {
             // Arrange
+            when(firestore.getOptions()).thenReturn(mockFirestoreOptions);
+            when(mockFirestoreOptions.getProjectId()).thenReturn("test-project");
             // Mock the future to throw the exception
             Exception cause = new RuntimeException("DB error");
             when(writeResultFuture.get()).thenThrow(new ExecutionException(cause));
@@ -278,6 +283,8 @@ public class FirestoreServiceTest {
         void saveShopCart_throwsRuntimeException_onInterruptedException() throws ExecutionException, InterruptedException {
             // Arrange
             InterruptedException cause = new InterruptedException("Simulated interruption");
+            when(firestore.getOptions()).thenReturn(mockFirestoreOptions);
+            when(mockFirestoreOptions.getProjectId()).thenReturn("test-project");
             when(writeResultFuture.get()).thenThrow(cause);
 
             // Act & Assert
@@ -292,13 +299,13 @@ public class FirestoreServiceTest {
     @Nested
     @DisplayName("getShopCartsByShopperId - Scenarios")
     class GetShopCartsByShopperIdTests {
-        private final String sharedShopperId = "shopper456";
 
         @Test
         @DisplayName("Should return a list of ShopCartDetailDTOs for a valid shopper")
         void getShopCartsByShopperId_shouldReturnListOfCarts() throws ExecutionException, InterruptedException {
             // Arrange
             Shopper shopper1 = new Shopper(TEST_SHOPPER_ID, "test1@example.com", "Test One");
+            String sharedShopperId = "shopper456";
             Shopper shopper2 = new Shopper(sharedShopperId, "test2@example.com", "Test Two");
             ShopCart shopCart = new ShopCart();
             shopCart.setShopperIds(List.of(TEST_SHOPPER_ID, sharedShopperId));

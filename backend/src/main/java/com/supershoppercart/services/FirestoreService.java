@@ -62,6 +62,10 @@ public class FirestoreService {
         try {
             // Give all initial shoppers a default EDIT permission
             if (shopCart.getShopperIds() != null) {
+
+                logger.info("Saving ShopCart with ID {} to project {}",
+                        shopCart.getId(),
+                        firestore.getOptions().getProjectId());
                 for (String shopperId : shopCart.getShopperIds()) {
                     shopCart.addOrUpdatePermission(shopperId, SharePermission.EDIT);
                 }

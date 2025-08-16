@@ -1,6 +1,8 @@
 package com.supershoppercart.services;
 
 import com.google.cloud.firestore.DocumentReference;
+import com.supershoppercart.dtos.ShopCartDetailDTO;
+import com.supershoppercart.enums.SharePermission;
 import com.supershoppercart.models.GroceryItem;
 import com.supershoppercart.models.ShopCart;
 import com.supershoppercart.models.Shopper;
@@ -245,5 +247,112 @@ public class ShopCartService {
         shopCart.setSharePermissions(new ArrayList<>());
 
         return shopCartRepository.saveTemplate(shopCart);
+    }
+
+    /**
+     * Retrieves all carts associated with a specific shopper ID.
+     *
+     * @param shopperId the shopper ID
+     * @return list of carts belonging to that shopper
+     */
+    public List<ShopCartDetailDTO> getShopCartsByShopperId(String shopperId) throws ExecutionException, InterruptedException {
+        Optional<Shopper> shopperOpt = shopperRepository.findById(shopperId);
+        if (shopperOpt.isEmpty()) {
+            throw new IllegalArgumentException("Shopper with ID " + shopperId + " not found.");
+        }
+
+        Shopper shopper = shopperOpt.get();
+        List<String> cartIds = shopper.getShopCartIds();
+        List<ShopCartDetailDTO> result = new ArrayList<>();
+
+        for (String cartId : cartIds) {
+            shopCartRepository.findById(cartId).ifPresent(cart ->
+                    result.add(new ShopCartDetailDTO(cartId, cart))
+            );
+        }
+        return result;
+    }
+
+    /**
+     * Shares a cart with another shopper by email.
+     *
+     * @param cartId          the cart to share
+     * @param ownerShopperId  the shopper initiating the share
+     * @param targetEmail     the email of the target shopper
+     * @param permission      permission type (e.g. "VIEW", "EDIT")
+     * @return true if shared successfully
+     */
+    public boolean shareShopCart(String cartId, String ownerShopperId, String targetEmail, SharePermission permission)
+            throws ExecutionException, InterruptedException {
+        Optional<ShopCart> cartOpt = shopCartRepository.findById(cartId);
+        if (cartOpt.isEmpty()) {
+            throw new IllegalArgumentException("Cart with ID " + cartId + " not found.");
+        }
+
+        ShopCart cart = cartOpt.get();
+        if (!cart.getShopperIds().contains(ownerShopperId)) {
+            throw new IllegalArgumentException("You do not have permission to share this cart.");
+        }
+
+        Optional<Shopper> targetOpt = shopperRepository.findByEmail(targetEmail);
+        if (targetOpt.isEmpty()) {
+            throw new IllegalArgumentException("Target shopper with email " + targetEmail + " not found.");
+        }
+
+        Shopper target = targetOpt.get();
+        if (!cart.getShopperIds().contains(target.getId())) {
+            cart.getShopperIds().add(target.getId());
+        }
+
+        // record share permission
+        cart.addOrUpdatePermission(target.getId(), permission);
+
+        // persist cart update
+        shopCartRepository.save(cart);
+
+        // also update shopper doc to include cart
+        if (!target.getShopCartIds().contains(cartId)) {
+            target.getShopCartIds().add(cartId);
+            shopperRepository.save(target);
+        }
+
+        return true;
+    }
+
+    /**
+     * Removes a shopper’s access from a shared cart.
+     *
+     * @param cartId         the cart ID
+     * @param ownerShopperId the owner performing the removal
+     * @param targetShopperId the shopper to remove
+     * @return true if removed successfully
+     */
+    public boolean removeSharing(String cartId, String ownerShopperId, String targetShopperId)
+            throws ExecutionException, InterruptedException {
+        Optional<ShopCart> cartOpt = shopCartRepository.findById(cartId);
+        if (cartOpt.isEmpty()) {
+            throw new IllegalArgumentException("Cart with ID " + cartId + " not found.");
+        }
+
+        ShopCart cart = cartOpt.get();
+        if (!cart.getShopperIds().contains(ownerShopperId)) {
+            throw new IllegalArgumentException("You do not have permission to modify this cart.");
+        }
+
+        boolean removed = cart.getShopperIds().remove(targetShopperId);
+        cart.removePermission(targetShopperId);
+
+        shopCartRepository.save(cart);
+
+        shopperRepository.findById(targetShopperId).ifPresent(shopper -> {
+            shopper.getShopCartIds().remove(cartId);
+            try {
+                shopperRepository.save(shopper);
+            } catch (Exception e) {
+                throw new RuntimeException("Error updating shopper after removing sharing: " + e.getMessage(), e);
+            }
+        });
+
+        return removed;
     }
 }

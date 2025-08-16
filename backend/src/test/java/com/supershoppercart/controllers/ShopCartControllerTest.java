@@ -1,6 +1,5 @@
 package com.supershoppercart.controllers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.supershoppercart.dtos.CreateShopCartRequestDTO;
 import com.supershoppercart.dtos.ShareCartRequestDTO;
 import com.supershoppercart.dtos.ShopCartDetailDTO;
@@ -9,24 +8,20 @@ import com.supershoppercart.enums.ShopCartState;
 import com.supershoppercart.models.GroceryItem;
 import com.supershoppercart.models.ShopCart;
 import com.supershoppercart.models.Shopper;
-import com.supershoppercart.services.FirestoreService;
+import com.supershoppercart.services.ShopCartService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.stubbing.Answer;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -35,708 +30,214 @@ import static org.mockito.Mockito.*;
 class ShopCartControllerTest {
 
     @Mock
-    private FirestoreService firestoreService;
+    private ShopCartService shopCartService;
 
     @InjectMocks
     private ShopCartController shopCartController;
 
     private Shopper testShopper;
+    private ShopCart dummyCart;
     private ShopCartDetailDTO testCartDto;
-    private MockMvc mockMvc;
-    private ObjectMapper objectMapper;
-    private Shopper mockShopper;
     private CreateShopCartRequestDTO validRequest;
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
-        testShopper = new Shopper("shopper@example.com", "Test Shopper");
-        testShopper.setId("test_shopper_id");
-
-        ShopCart dummyShopCart = new ShopCart();
-        String randomIdentifier = UUID.randomUUID().toString();
-        dummyShopCart.setId(randomIdentifier);
-        dummyShopCart.setName("Test Cart");
-
-        testCartDto = new ShopCartDetailDTO(randomIdentifier, dummyShopCart);
-        testCartDto.setShoppers(Collections.emptyList());
-
-        mockMvc = MockMvcBuilders.standaloneSetup(shopCartController).build();
         objectMapper = new ObjectMapper();
 
-        // Setup mock shopper
-        mockShopper = new Shopper();
-        mockShopper.setId("shopper-123");
-        mockShopper.setEmail("test@example.com");
+        testShopper = new Shopper();
+        testShopper.setId("test_shopper_id");
+        testShopper.setEmail("shopper@example.com");
+        testShopper.setName("Test Shopper");
 
-        // Setup valid request
+
+        dummyCart = new ShopCart();
+        dummyCart.setId("cart-123");
+        dummyCart.setName("Test Cart");
+        dummyCart.setDateKey("2025-01-01");
+        dummyCart.setCreatedBy(testShopper.getId());
+        dummyCart.setState(ShopCartState.ACTIVE);
+        dummyCart.setCreatedAt(new Date());
+        dummyCart.setShopperIds(List.of(testShopper.getId()));
+
+        testCartDto = new ShopCartDetailDTO(dummyCart.getId(), dummyCart);
+
         validRequest = new CreateShopCartRequestDTO();
-        validRequest.setName("Weekly Shopping");
-        validRequest.setDateKey("2024-01-15");
-        validRequest.setItems(new ArrayList<>());
-        validRequest.setPublic(false);
-        validRequest.setTemplate(false);
+        validRequest.setDateKey("2025-01-01");
+        validRequest.setItems(List.of(new GroceryItem("Milk", "2 liters")));
+    }
+
+    // ===== getMyCarts Tests =====
+    @Test
+    @DisplayName("getMyCarts should return UNAUTHORIZED when shopper is null")
+    void getMyCarts_UnauthorizedWhenNullShopper() {
+        ResponseEntity<?> response = shopCartController.getMyCarts(null);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        verifyNoInteractions(shopCartService);
     }
 
     @Test
-    @DisplayName("Should create cart successfully with valid request")
-    void shouldCreateCartSuccessfullyWithValidRequest() throws Exception {
-        // Given
-        String mockedId = "cart-123";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
+    @DisplayName("getMyCarts should return list of carts successfully")
+    void getMyCarts_ReturnsCarts() throws ExecutionException, InterruptedException {
+        when(shopCartService.getShopCartsByShopperId("test_shopper_id")).thenReturn(List.of(testCartDto));
 
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
+        ResponseEntity<?> response = shopCartController.getMyCarts(testShopper);
 
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertInstanceOf(ShopCartDetailDTO.class, response.getBody());
-
-        ShopCartDetailDTO responseDto = (ShopCartDetailDTO) response.getBody();
-        assertNotNull(responseDto.getIdentifier());
-        assertEquals(validRequest.getName(), responseDto.getName());
-        assertEquals(validRequest.getDateKey(), responseDto.getDateKey());
-
-        verify(firestoreService, times(1)).saveShopCart(any(ShopCart.class));
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        List<?> carts = (List<?>) response.getBody();
+        assertNotNull(carts);
+        assertEquals(1, carts.size());
+        verify(shopCartService).getShopCartsByShopperId("test_shopper_id");
     }
 
     @Test
-    @DisplayName("Should create cart with grocery items")
-    void shouldCreateCartWithGroceryItems() throws Exception {
-        // Given
-        List<GroceryItem> items = Arrays.asList(
-                new GroceryItem("Milk", "2 liters"),
-                new GroceryItem("Bread", "1 loaf")
-        );
+    @DisplayName("getMyCarts should return 500 on exception")
+    void getMyCarts_Exception() throws ExecutionException, InterruptedException {
+        when(shopCartService.getShopCartsByShopperId(anyString())).thenThrow(new RuntimeException("DB error"));
 
-        validRequest.setItems(items);
-        String expectedCartId = "firestore-generated-id-123";
+        ResponseEntity<?> response = shopCartController.getMyCarts(testShopper);
 
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(expectedCartId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(2, savedCart.getItems().size());
-        assertEquals("Milk", savedCart.getItems().get(0).getDesignation());
-        assertEquals("2 liters", savedCart.getItems().get(0).getQuantity());
-        assertFalse(savedCart.getItems().get(0).isPurchased());
-    }
-
-    @Test
-    @DisplayName("Should create public template cart")
-    void shouldCreatePublicTemplateCart() throws Exception {
-        // Given
-        validRequest.setPublic(true);
-        validRequest.setTemplate(true);
-        String mockedId = "cart-123";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertTrue(savedCart.isPublic());
-        assertTrue(savedCart.isTemplate());
-    }
-
-    @Test
-    @DisplayName("Should set correct cart properties during creation")
-    void shouldSetCorrectCartPropertiesDuringCreation() throws Exception {
-        // Given
-        String mockedId = "cart-123";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-
-        // When
-        shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-
-        assertNotNull(savedCart.getId());
-        assertEquals(validRequest.getName(), savedCart.getName());
-        assertEquals(validRequest.getDateKey(), savedCart.getDateKey());
-        assertEquals(List.of(mockShopper.getId()), savedCart.getShopperIds());
-        assertEquals(mockShopper.getId(), savedCart.getCreatedBy());
-        assertEquals(ShopCartState.ACTIVE, savedCart.getState());
-        assertNotNull(savedCart.getCreatedAt());
-        assertNotNull(savedCart.getLastModified());
-        assertNotNull(savedCart.getLastInteraction());
-    }
-
-    @Test
-    @DisplayName("Should handle null items list gracefully")
-    void shouldHandleNullItemsListGracefully() throws Exception {
-        // Given
-        validRequest.setItems(null);
-        String mockedId = "cart-123";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertNotNull(savedCart.getItems());
-        assertTrue(savedCart.getItems().isEmpty());
-    }
-
-    @Test
-    @DisplayName("Should return 500 when FirestoreService throws exception")
-    void shouldReturn500WhenFirestoreServiceThrowsException() throws Exception {
-        // Given
-        String errorMessage = "Database connection failed";
-        doThrow(new RuntimeException(errorMessage))
-                .when(firestoreService).saveShopCart(any(ShopCart.class));
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertInstanceOf(Map.class, response.getBody());
-
-        @SuppressWarnings("unchecked")
-        Map<String, String> errorResponse = (Map<String, String>) response.getBody();
-        assertTrue(errorResponse.get("error").contains(errorMessage));
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertTrue(body.get("error").toString().contains("DB error"));
     }
 
+    // ===== createCart Tests =====
     @Test
-    @DisplayName("Should return 401 Unauthorized for null shopper")
-    void shouldReturnUnauthorizedForNullShopper() throws Exception {
-
+    @DisplayName("createCart returns UNAUTHORIZED when shopper is null")
+    void createCart_Unauthorized() {
         ResponseEntity<?> response = shopCartController.createCart(null, validRequest);
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-        verify(firestoreService, never()).saveShopCart(any());
-
-        assertNotNull(response.getBody());
+        verifyNoInteractions(shopCartService);
     }
 
     @Test
-    @DisplayName("Should handle invalid request with blank name")
-    void shouldHandleInvalidRequestWithBlankName() {
-        // Given
-        validRequest.setName("");
+    @DisplayName("createCart should create successfully")
+    void createCart_Success() throws ExecutionException, InterruptedException {
+        when(shopCartService.createShopCart(anyString(), anyList(), anyList())).thenReturn(dummyCart);
 
-        // When/Then - This would be handled by Spring's validation framework
-        // In a real scenario, @Valid annotation would trigger validation before method execution
-        assertDoesNotThrow(() -> {
-            shopCartController.createCart(mockShopper, validRequest);
-        });
-    }
+        ResponseEntity<?> response = shopCartController.createCart(testShopper, validRequest);
 
-    @Test
-    @DisplayName("Should handle request with special characters in name")
-    void shouldHandleRequestWithSpecialCharactersInName() throws Exception {
-        // Given
-        validRequest.setName("Shopping List 🛒 with émojis & symbols @#$%");
-        String mockedId = "cart-123";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(validRequest.getName(), savedCart.getName());
+        assertInstanceOf(ShopCartDetailDTO.class, response.getBody());
+        verify(shopCartService).createShopCart(eq(validRequest.getDateKey()), anyList(), anyList());
     }
 
     @Test
-    @DisplayName("Should handle very long cart name")
-    void shouldHandleVeryLongCartName() throws Exception {
-        // Given
-        String longName = "A".repeat(1000);
-        validRequest.setName(longName);
-        String mockedId = "cart-123";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
+    @DisplayName("createCart returns 500 when service throws")
+    void createCart_Exception() throws ExecutionException, InterruptedException {
+        when(shopCartService.createShopCart(anyString(), anyList(), anyList()))
+                .thenThrow(new RuntimeException("Service failure"));
 
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
+        ResponseEntity<?> response = shopCartController.createCart(testShopper, validRequest);
 
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(longName, savedCart.getName());
-    }
-
-    @Test
-    @DisplayName("Should maintain data integrity throughout creation process")
-    void shouldMaintainDataIntegrityThroughoutCreationProcess() throws Exception {
-        // Given
-        List<GroceryItem> originalItems = Arrays.asList(
-                new GroceryItem("Milk", "2 liters"),
-                new GroceryItem("Bread", "1 loaf")
-        );
-        validRequest.setItems(originalItems);
-        validRequest.setPublic(true);
-        validRequest.setTemplate(false);
-        String mockedId = "cart-123";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ShopCartDetailDTO responseDto = (ShopCartDetailDTO) response.getBody();
-        assertNotNull(responseDto);
-        assertEquals(validRequest.getName(), responseDto.getName());
-        assertEquals(validRequest.getDateKey(), responseDto.getDateKey());
-        assertFalse(responseDto.isTemplate());
-
-        // Verify the exact cart that was saved
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(responseDto.getIdentifier(), savedCart.getId());
-        assertEquals(2, savedCart.getItems().size());
-        assertEquals(1, savedCart.getShopperIds().size());
-        assertEquals(mockShopper.getId(), savedCart.getShopperIds().get(0));
-
-        // Verify grocery items details
-        GroceryItem firstItem = savedCart.getItems().get(0);
-        assertEquals("Milk", firstItem.getDesignation());
-        assertEquals("2 liters", firstItem.getQuantity());
-        assertFalse(firstItem.isPurchased());
-    }
-
-    @Test
-    @DisplayName("Should generate unique IDs for multiple cart creations")
-    void shouldGenerateUniqueIdsForMultipleCartCreations() throws Exception {
-        // Given
-        Set<String> generatedIds = new HashSet<>();
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenAnswer(new Answer<String>() {
-            @Override
-            public String answer(InvocationOnMock invocation) {
-                // Return a new unique ID for each invocation
-                return UUID.randomUUID().toString();
-            }
-        });
-
-        // When - Create multiple carts
-        for (int i = 0; i < 10; i++) {
-            CreateShopCartRequestDTO request = new CreateShopCartRequestDTO();
-            request.setName("Cart " + i);
-            request.setDateKey("2024-01-15");
-
-            ResponseEntity<?> response = shopCartController.createCart(mockShopper, request);
-            ShopCartDetailDTO dto = (ShopCartDetailDTO) response.getBody();
-            assertNotNull(dto);
-            generatedIds.add(dto.getIdentifier());
-        }
-
-        // Then
-        assertEquals(10, generatedIds.size()); // All IDs should be unique
-    }
-
-    @Test
-    @DisplayName("Should handle shopper with very long ID")
-    void shouldHandleShopperWithVeryLongId() throws Exception {
-        // Given
-        Shopper shopperWithLongId = new Shopper();
-        shopperWithLongId.setId("a".repeat(500));
-        shopperWithLongId.setEmail("test@example.com");
-        String mockCartId = "mock-cart-id";
-
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockCartId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(shopperWithLongId, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(shopperWithLongId.getId(), savedCart.getCreatedBy());
-    }
-
-    @Test
-    @DisplayName("Should handle request with empty items list")
-    void shouldHandleRequestWithEmptyItemsList() throws Exception {
-        // Given
-        validRequest.setItems(new ArrayList<>());
-        String mockedId = "mock_id_85154";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertNotNull(savedCart.getItems());
-        assertTrue(savedCart.getItems().isEmpty());
-    }
-
-    @Test
-    @DisplayName("Should set creation timestamps correctly")
-    void shouldSetCreationTimestampsCorrectly() throws Exception {
-        // Given
-        String mockedId = "mock_id_85154";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-        Date beforeCreation = new Date();
-
-        // When
-        shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        Date afterCreation = new Date();
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertTrue(savedCart.getCreatedAt().compareTo(beforeCreation) >= 0);
-        assertTrue(savedCart.getCreatedAt().compareTo(afterCreation) <= 0);
-        assertEquals(savedCart.getCreatedAt(), savedCart.getLastModified());
-        assertEquals(savedCart.getCreatedAt(), savedCart.getLastInteraction());
-    }
-
-    @Test
-    @DisplayName("Should handle cart creation with multiple grocery items of same type")
-    void shouldHandleCartCreationWithMultipleGroceryItemsOfSameType() throws Exception {
-        // Given
-        List<GroceryItem> items = Arrays.asList(
-                new GroceryItem("Milk", "1 liter"),
-                new GroceryItem("Milk", "2 liters"),
-                new GroceryItem("Bread", "1 loaf")
-        );
-        validRequest.setItems(items);
-        String mockedId = "mock_id_85154";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(3, savedCart.getItems().size());
-
-        // Verify that items with same designation but different quantities are preserved
-        long milkCount = savedCart.getItems().stream()
-                .filter(item -> "Milk".equals(item.getDesignation()))
-                .count();
-        assertEquals(2, milkCount);
-    }
-
-    @Test
-    @DisplayName("Should create cart with purchased and unpurchased grocery items")
-    void shouldCreateCartWithPurchasedAndUnpurchasedGroceryItems() throws Exception {
-        // Given
-        List<GroceryItem> items = Arrays.asList(
-                new GroceryItem("Milk", "2 liters", false),
-                new GroceryItem("Bread", "1 loaf", true),
-                new GroceryItem("Eggs", "12 pieces")
-        );
-        validRequest.setItems(items);
-        String mockedId = "mock_Id_999";
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(3, savedCart.getItems().size());
-
-        // Verify purchased status
-        assertFalse(savedCart.getItems().get(0).isPurchased()); // Milk
-        assertTrue(savedCart.getItems().get(1).isPurchased());  // Bread
-        assertFalse(savedCart.getItems().get(2).isPurchased()); // Eggs (default false)
-    }
-
-    @Test
-    @DisplayName("Should handle grocery items with special characters in designation and quantity")
-    void shouldHandleGroceryItemsWithSpecialCharacters() throws Exception {
-        // Given
-        List<GroceryItem> items = Arrays.asList(
-                new GroceryItem("Café au lait ☕", "2 tasses"),
-                new GroceryItem("Açaí smoothie", "500ml @ €5.99")
-        );
-        validRequest.setItems(items);
-        String mockedId = "mock_id_85154";
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockedId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(2, savedCart.getItems().size());
-        assertEquals("Café au lait ☕", savedCart.getItems().get(0).getDesignation());
-        assertEquals("2 tasses", savedCart.getItems().get(0).getQuantity());
-    }
-
-    @Test
-    @DisplayName("Should verify cart ID is valid UUID format")
-    void shouldVerifyCartIdIsValidUuidFormat() throws Exception {
-        // Given
-        String mockCartId = UUID.randomUUID().toString();
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockCartId);
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertDoesNotThrow(() -> UUID.fromString(savedCart.getId()));
-    }
-
-    @Test
-    @DisplayName("Should handle empty designation and quantity in grocery items")
-    void shouldHandleEmptyDesignationAndQuantityInGroceryItems() throws Exception {
-        // Given
-        List<GroceryItem> items = Arrays.asList(
-                new GroceryItem("", "2 pieces"),
-                new GroceryItem("Milk", ""),
-                new GroceryItem("", "")
-        );
-        validRequest.setItems(items);
-        String mockCartId = UUID.randomUUID().toString();
-        // Correctly mock the method to return a value
-        when(firestoreService.saveShopCart(any(ShopCart.class))).thenReturn(mockCartId);
-
-
-        // When
-        ResponseEntity<?> response = shopCartController.createCart(mockShopper, validRequest);
-
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-
-        ArgumentCaptor<ShopCart> cartCaptor = ArgumentCaptor.forClass(ShopCart.class);
-        verify(firestoreService).saveShopCart(cartCaptor.capture());
-
-        ShopCart savedCart = cartCaptor.getValue();
-        assertEquals(3, savedCart.getItems().size());
-        assertEquals("", savedCart.getItems().get(0).getDesignation());
-        assertEquals("2 pieces", savedCart.getItems().get(0).getQuantity());
-        assertEquals("Milk", savedCart.getItems().get(1).getDesignation());
-        assertEquals("", savedCart.getItems().get(1).getQuantity());
-    }
-
-
-    // --- getMyCarts Endpoint Tests ---
-
-    @Test
-    void getMyCarts_ReturnsListOfCartsSuccessfully() throws Exception {
-        // Arrange
-        List<ShopCartDetailDTO> expectedCarts = List.of(testCartDto);
-        when(firestoreService.getShopCartsByShopperId("test_shopper_id")).thenReturn(expectedCarts);
-
-        // Act
-        List<ShopCartDetailDTO> actualCarts = shopCartController.getMyCarts(testShopper);
-
-        // Assert
-        assertNotNull(actualCarts);
-        assertEquals(1, actualCarts.size());
-        assertEquals(expectedCarts.get(0).getIdentifier(), actualCarts.get(0).getIdentifier());
-        verify(firestoreService, times(1)).getShopCartsByShopperId("test_shopper_id");
-    }
-
-    @Test
-    void getMyCarts_ServiceThrowsException_ThrowsException() {
-        // Arrange
-        when(firestoreService.getShopCartsByShopperId("test_shopper_id"))
-                .thenThrow(new RuntimeException("Firestore error"));
-
-        // Act & Assert
-        RuntimeException thrown = assertThrows(RuntimeException.class, () -> {
-            shopCartController.getMyCarts(testShopper);
-        });
-
-        assertEquals("Firestore error", thrown.getMessage());
-        verify(firestoreService, times(1)).getShopCartsByShopperId("test_shopper_id");
-    }
-
-    // --- shareCart Endpoint Tests ---
-
-    @Test
-    void shareCart_SuccessfulSharing_ReturnsOkResponse() throws Exception {
-        // Arrange
-        Authentication mockAuthentication = mock(Authentication.class);
-        when(mockAuthentication.getPrincipal()).thenReturn(testShopper);
-
-        String cartId = testCartDto.getIdentifier();
-        ShareCartRequestDTO requestDto = new ShareCartRequestDTO();
-        requestDto.setTargetShopperEmail("target@example.com");
-        requestDto.setPermission(SharePermission.EDIT);
-
-        when(firestoreService.shareCartWithShopper(cartId, "test_shopper_id", requestDto.getTargetShopperEmail(), requestDto.getPermission()))
-                .thenReturn(true);
-
-        // Act
-        ResponseEntity<?> response = shopCartController.shareCart(cartId, requestDto, mockAuthentication);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(Map.of("message", "Cart shared successfully"), response.getBody());
-        verify(firestoreService, times(1)).shareCartWithShopper(cartId, "test_shopper_id", requestDto.getTargetShopperEmail(), requestDto.getPermission());
-    }
-
-    @Test
-    void shareCart_SharingFails_ReturnsBadRequest() throws Exception {
-        // Arrange
-        Authentication mockAuthentication = mock(Authentication.class);
-        when(mockAuthentication.getPrincipal()).thenReturn(testShopper);
-
-        String cartId = testCartDto.getIdentifier();
-        ShareCartRequestDTO requestDto = new ShareCartRequestDTO();
-        requestDto.setTargetShopperEmail("target@example.com");
-        requestDto.setPermission(SharePermission.EDIT);
-
-        when(firestoreService.shareCartWithShopper(cartId, "test_shopper_id", requestDto.getTargetShopperEmail(), requestDto.getPermission()))
-                .thenReturn(false);
-
-        // Act
-        ResponseEntity<?> response = shopCartController.shareCart(cartId, requestDto, mockAuthentication);
-
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals(Map.of("error", "Failed to share cart. Check permissions and target user exists."), response.getBody());
-        verify(firestoreService, times(1)).shareCartWithShopper(cartId, "test_shopper_id", requestDto.getTargetShopperEmail(), requestDto.getPermission());
-    }
-
-    @Test
-    void shareCart_ServiceThrowsException_ReturnsInternalServerError() throws Exception {
-        // Arrange
-        Authentication mockAuthentication = mock(Authentication.class);
-        when(mockAuthentication.getPrincipal()).thenReturn(testShopper);
-
-        String cartId = testCartDto.getIdentifier();
-        ShareCartRequestDTO requestDto = new ShareCartRequestDTO();
-        requestDto.setTargetShopperEmail("target@example.com");
-        requestDto.setPermission(SharePermission.EDIT);
-
-        when(firestoreService.shareCartWithShopper(cartId, "test_shopper_id", requestDto.getTargetShopperEmail(), requestDto.getPermission()))
-                .thenThrow(new RuntimeException("Test sharing exception"));
-
-        // Act
-        ResponseEntity<?> response = shopCartController.shareCart(cartId, requestDto, mockAuthentication);
-
-        // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertEquals(Map.of("error", "Internal server error: Test sharing exception"), response.getBody());
-        verify(firestoreService, times(1)).shareCartWithShopper(cartId, "test_shopper_id", requestDto.getTargetShopperEmail(), requestDto.getPermission());
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertTrue(body.get("error").toString().contains("Service failure"));
     }
 
-    // --- removeSharing Endpoint Tests ---
+    // ===== shareCart Tests =====
+    @Test
+    @DisplayName("shareCart returns Unauthorized when shopper is null")
+    void shareCart_Unauthorized() {
+        ShareCartRequestDTO dto = new ShareCartRequestDTO();
+        dto.setTargetShopperEmail("target@example.com");
+        dto.setPermission(SharePermission.VIEW);
+
+        ResponseEntity<?> response = shopCartController.shareCart("cart1", dto, null);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
 
     @Test
-    void removeSharing_SuccessfulRemoval_ReturnsOkResponse() throws Exception {
-        // Arrange
-        Authentication mockAuthentication = mock(Authentication.class);
-        when(mockAuthentication.getPrincipal()).thenReturn(testShopper);
+    @DisplayName("shareCart success response")
+    void shareCart_Success() throws ExecutionException, InterruptedException {
+        ShareCartRequestDTO dto = new ShareCartRequestDTO();
+        dto.setTargetShopperEmail("target@example.com");
+        dto.setPermission(SharePermission.EDIT);
 
-        String cartId = testCartDto.getIdentifier();
-        String targetShopperId = "target_shopper_id";
+        when(shopCartService.shareShopCart(anyString(), anyString(), anyString(), any())).thenReturn(true);
 
-        when(firestoreService.removeCartSharing(cartId, "test_shopper_id", targetShopperId)).thenReturn(true);
+        ResponseEntity<?> response = shopCartController.shareCart("cart1", dto, testShopper);
 
-        // Act
-        ResponseEntity<?> response = shopCartController.removeSharing(cartId, targetShopperId, mockAuthentication);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(Map.of("message", "Sharing removed successfully"), response.getBody());
-        verify(firestoreService, times(1)).removeCartSharing(cartId, "test_shopper_id", targetShopperId);
+        verify(shopCartService).shareShopCart("cart1", "test_shopper_id", "target@example.com", SharePermission.EDIT);
     }
 
     @Test
-    void removeSharing_RemovalFails_ReturnsBadRequest() throws Exception {
-        // Arrange
-        Authentication mockAuthentication = mock(Authentication.class);
-        when(mockAuthentication.getPrincipal()).thenReturn(testShopper);
+    @DisplayName("shareCart failure returns BadRequest")
+    void shareCart_Failure() throws ExecutionException, InterruptedException {
+        ShareCartRequestDTO dto = new ShareCartRequestDTO();
+        dto.setTargetShopperEmail("target@example.com");
+        dto.setPermission(SharePermission.VIEW);
 
-        String cartId = testCartDto.getIdentifier();
-        String targetShopperId = "target_shopper_id";
+        when(shopCartService.shareShopCart(anyString(), anyString(), anyString(), any())).thenReturn(false);
 
-        when(firestoreService.removeCartSharing(cartId, "test_shopper_id", targetShopperId)).thenReturn(false);
+        ResponseEntity<?> response = shopCartController.shareCart("cart1", dto, testShopper);
 
-        // Act
-        ResponseEntity<?> response = shopCartController.removeSharing(cartId, targetShopperId, mockAuthentication);
-
-        // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals(Map.of("error", "Failed to remove sharing"), response.getBody());
-        verify(firestoreService, times(1)).removeCartSharing(cartId, "test_shopper_id", targetShopperId);
     }
 
     @Test
-    void removeSharing_ServiceThrowsException_ReturnsInternalServerError() throws Exception {
-        // Arrange
-        Authentication mockAuthentication = mock(Authentication.class);
-        when(mockAuthentication.getPrincipal()).thenReturn(testShopper);
+    @DisplayName("shareCart exception returns 500")
+    void shareCart_Exception() throws ExecutionException, InterruptedException {
+        ShareCartRequestDTO dto = new ShareCartRequestDTO();
+        dto.setTargetShopperEmail("target@example.com");
+        dto.setPermission(SharePermission.VIEW);
 
-        String cartId = testCartDto.getIdentifier();
-        String targetShopperId = "target_shopper_id";
+        when(shopCartService.shareShopCart(anyString(), anyString(), anyString(), any()))
+                .thenThrow(new RuntimeException("Share failed"));
 
-        when(firestoreService.removeCartSharing(cartId, "test_shopper_id", targetShopperId))
-                .thenThrow(new RuntimeException("Test removal exception"));
+        ResponseEntity<?> response = shopCartController.shareCart("cart1", dto, testShopper);
 
-        // Act
-        ResponseEntity<?> response = shopCartController.removeSharing(cartId, targetShopperId, mockAuthentication);
-
-        // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertEquals(Map.of("error", "Internal server error: Test removal exception"), response.getBody());
-        verify(firestoreService, times(1)).removeCartSharing(cartId, "test_shopper_id", targetShopperId);
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertTrue(body.get("error").toString().contains("Share failed"));
+    }
+
+    // ===== removeSharing Tests =====
+    @Test
+    @DisplayName("removeSharing returns Unauthorized when shopper is null")
+    void removeSharing_Unauthorized() {
+        ResponseEntity<?> response = shopCartController.removeSharing("cart1", "targetId", null);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("removeSharing success returns Ok")
+    void removeSharing_Success() throws ExecutionException, InterruptedException {
+        when(shopCartService.removeSharing("cart1", "test_shopper_id", "targetId")).thenReturn(true);
+
+        ResponseEntity<?> response = shopCartController.removeSharing("cart1", "targetId", testShopper);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        verify(shopCartService).removeSharing("cart1", "test_shopper_id", "targetId");
+    }
+
+    @Test
+    @DisplayName("removeSharing failure returns BadRequest")
+    void removeSharing_Failure() throws ExecutionException, InterruptedException {
+        when(shopCartService.removeSharing("cart1", "test_shopper_id", "targetId")).thenReturn(false);
+
+        ResponseEntity<?> response = shopCartController.removeSharing("cart1", "targetId", testShopper);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("removeSharing exception returns 500")
+    void removeSharing_Exception() throws ExecutionException, InterruptedException {
+        when(shopCartService.removeSharing(anyString(), anyString(), anyString()))
+                .thenThrow(new RuntimeException("Removal error"));
+
+        ResponseEntity<?> response = shopCartController.removeSharing("cart1", "targetId", testShopper);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        Map<?, ?> body = (Map<?, ?>) response.getBody();
+        assertTrue(body.get("error").toString().contains("Removal error"));
     }
 }
+

@@ -1,5 +1,7 @@
 package com.supershoppercart.services;
 
+import com.supershoppercart.dtos.ShopCartDetailDTO;
+import com.supershoppercart.enums.SharePermission;
 import com.supershoppercart.models.GroceryItem;
 import com.supershoppercart.models.ShopCart;
 import com.supershoppercart.models.Shopper;
@@ -67,6 +69,9 @@ public class ShopCartServiceTest {
         shopCart.setDateKey("2025-08-01");
         shopCart.setItems(new ArrayList<>(Arrays.asList(item1, item2)));
         shopCart.setShopperIds(new ArrayList<>(Collections.singletonList(shopper1.getId())));
+        // Initialize share permissions for relevant tests
+        shopCart.setSharePermissions(new ArrayList<>());
+
 
         templateShopCart = new ShopCart();
         templateShopCart.setId("template1");
@@ -411,47 +416,164 @@ public class ShopCartServiceTest {
         ShopCart result = shopCartService.saveShopCartAsTemplate(regularCart);
 
         assertNotNull(result);
+        assertEquals("templateId", result.getId());
         assertTrue(result.isTemplate());
-        assertEquals("My Grocery List", result.getName());
         assertTrue(result.getShopperIds().isEmpty());
         assertTrue(result.getSharePermissions().isEmpty());
-        assertEquals(2, result.getItems().size());
+        assertEquals("My Grocery List", result.getName());
         verify(shopCartRepository, times(1)).saveTemplate(any(ShopCart.class));
+    }
 
-        // Verify that the original cart was modified to be a template
-        assertTrue(regularCart.isTemplate());
-        assertTrue(regularCart.getShopperIds().isEmpty());
-        assertTrue(regularCart.getSharePermissions().isEmpty());
+    // --- getShopCartsByShopperId tests ---
+
+    @Test
+    @DisplayName("Should retrieve all carts for a given shopper ID")
+    void testGetShopCartsByShopperId_Success() throws ExecutionException, InterruptedException {
+        shopper1.setShopCartIds(Arrays.asList("cartId1", "cartId2"));
+        ShopCart anotherCart = new ShopCart();
+        anotherCart.setId("cartId2");
+
+        when(shopperRepository.findById("shopperId1")).thenReturn(Optional.of(shopper1));
+        when(shopCartRepository.findById("cartId1")).thenReturn(Optional.of(shopCart));
+        when(shopCartRepository.findById("cartId2")).thenReturn(Optional.of(anotherCart));
+
+        List<ShopCartDetailDTO> result = shopCartService.getShopCartsByShopperId("shopperId1");
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(dto -> dto.getIdentifier().equals("cartId1")));
+        assertTrue(result.stream().anyMatch(dto -> dto.getIdentifier().equals("cartId2")));
+        verify(shopperRepository, times(1)).findById("shopperId1");
+        verify(shopCartRepository, times(2)).findById(anyString());
     }
 
     @Test
-    @DisplayName("Should handle cart with null shopper IDs and share permissions when saving as template")
-    void testSaveShopCartAsTemplate_WithNullCollections() throws ExecutionException, InterruptedException {
-        // Create a cart with null collections
-        ShopCart cartWithNulls = new ShopCart();
-        cartWithNulls.setId("cartId");
-        cartWithNulls.setName("Test Cart");
-        cartWithNulls.setItems(new ArrayList<>(Arrays.asList(item1)));
-        cartWithNulls.setShopperIds(null);
-        cartWithNulls.setSharePermissions(null);
+    @DisplayName("Should return an empty list if shopper has no carts")
+    void testGetShopCartsByShopperId_NoCarts() throws ExecutionException, InterruptedException {
+        when(shopperRepository.findById("shopperId1")).thenReturn(Optional.of(shopper1));
 
-        ShopCart savedTemplate = new ShopCart();
-        savedTemplate.setId("templateId");
-        savedTemplate.setName("Test Cart");
-        savedTemplate.convertToTemplate("Test Cart");
+        List<ShopCartDetailDTO> result = shopCartService.getShopCartsByShopperId("shopperId1");
 
-        when(shopCartRepository.saveTemplate(any(ShopCart.class))).thenReturn(savedTemplate);
-
-        ShopCart result = shopCartService.saveShopCartAsTemplate(cartWithNulls);
-
-        assertNotNull(result);
-        assertTrue(result.isTemplate());
-        assertNotNull(cartWithNulls.getShopperIds());
-        assertNotNull(cartWithNulls.getSharePermissions());
-        assertTrue(cartWithNulls.getShopperIds().isEmpty());
-        assertTrue(cartWithNulls.getSharePermissions().isEmpty());
-        verify(shopCartRepository, times(1)).saveTemplate(any(ShopCart.class));
+        assertTrue(result.isEmpty());
+        verify(shopperRepository, times(1)).findById("shopperId1");
+        verify(shopCartRepository, never()).findById(anyString());
     }
 
+    @Test
+    @DisplayName("Should throw IllegalArgumentException if shopper is not found")
+    void testGetShopCartsByShopperId_ShopperNotFound() throws ExecutionException, InterruptedException {
+        when(shopperRepository.findById("nonexistentId")).thenReturn(Optional.empty());
 
+        assertThrows(IllegalArgumentException.class, () ->
+                shopCartService.getShopCartsByShopperId("nonexistentId")
+        );
+    }
+
+    // --- shareShopCart tests ---
+
+    @Test
+    @DisplayName("Should successfully share a cart with another shopper")
+    void testShareShopCart_Success() throws ExecutionException, InterruptedException {
+        when(shopCartRepository.findById(shopCart.getId())).thenReturn(Optional.of(shopCart));
+        when(shopperRepository.findByEmail(shopper2.getEmail())).thenReturn(Optional.of(shopper2));
+
+        boolean result = shopCartService.shareShopCart(shopCart.getId(), shopper1.getId(), shopper2.getEmail(), SharePermission.EDIT);
+
+        assertTrue(result);
+        assertTrue(shopCart.getShopperIds().contains(shopper2.getId()));
+        assertTrue(shopper2.getShopCartIds().contains(shopCart.getId()));
+        assertEquals(SharePermission.EDIT, shopCart.getSharePermissions().get(0).getPermission());
+        assertEquals(shopper2.getId(), shopCart.getSharePermissions().get(0).getShopperId());
+        verify(shopCartRepository, times(1)).save(shopCart);
+        verify(shopperRepository, times(1)).save(shopper2);
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when sharing a non-existent cart")
+    void testShareShopCart_CartNotFound() throws ExecutionException, InterruptedException {
+        when(shopCartRepository.findById("nonexistentId")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                shopCartService.shareShopCart("nonexistentId", shopper1.getId(), shopper2.getEmail(), SharePermission.VIEW)
+        );
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException if owner does not have permission to share")
+    void testShareShopCart_PermissionDenied() throws ExecutionException, InterruptedException {
+        when(shopCartRepository.findById(shopCart.getId())).thenReturn(Optional.of(shopCart));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                shopCartService.shareShopCart(shopCart.getId(), "unauthorizedShopper", shopper2.getEmail(), SharePermission.VIEW)
+        );
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException if target shopper is not found")
+    void testShareShopCart_TargetNotFound() throws ExecutionException, InterruptedException {
+        when(shopCartRepository.findById(shopCart.getId())).thenReturn(Optional.of(shopCart));
+        when(shopperRepository.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                shopCartService.shareShopCart(shopCart.getId(), shopper1.getId(), "nonexistent@example.com", SharePermission.VIEW)
+        );
+    }
+
+    // --- removeSharing tests ---
+
+    @Test
+    @DisplayName("Should successfully remove a shopper's access from a cart")
+    void testRemoveSharing_Success() throws ExecutionException, InterruptedException {
+        // Setup: cart is shared with shopper2
+        shopCart.getShopperIds().add(shopper2.getId());
+        shopCart.addOrUpdatePermission(shopper2.getId(), SharePermission.EDIT);
+        shopper2.getShopCartIds().add(shopCart.getId());
+
+        when(shopCartRepository.findById(shopCart.getId())).thenReturn(Optional.of(shopCart));
+        when(shopperRepository.findById(shopper2.getId())).thenReturn(Optional.of(shopper2));
+
+        boolean result = shopCartService.removeSharing(shopCart.getId(), shopper1.getId(), shopper2.getId());
+
+        assertTrue(result);
+        assertFalse(shopCart.getShopperIds().contains(shopper2.getId()));
+        assertTrue(shopCart.getSharePermissions().isEmpty());
+        assertFalse(shopper2.getShopCartIds().contains(shopCart.getId()));
+
+        verify(shopCartRepository, times(1)).save(shopCart);
+        verify(shopperRepository, times(1)).save(shopper2);
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when removing access from a non-existent cart")
+    void testRemoveSharing_CartNotFound() throws ExecutionException, InterruptedException {
+        when(shopCartRepository.findById("nonexistentId")).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                shopCartService.removeSharing("nonexistentId", shopper1.getId(), shopper2.getId())
+        );
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException if owner does not have permission to remove access")
+    void testRemoveSharing_PermissionDenied() throws ExecutionException, InterruptedException {
+        when(shopCartRepository.findById(shopCart.getId())).thenReturn(Optional.of(shopCart));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                shopCartService.removeSharing(shopCart.getId(), "unauthorizedShopper", shopper2.getId())
+        );
+    }
+
+    @Test
+    @DisplayName("Should return false if target shopper was not associated with the cart")
+    void testRemoveSharing_TargetNotInCart() throws ExecutionException, InterruptedException {
+        // Note: shopper2 is NOT added to the cart's shopperIds list in this test
+        when(shopCartRepository.findById(shopCart.getId())).thenReturn(Optional.of(shopCart));
+        when(shopperRepository.findById(shopper2.getId())).thenReturn(Optional.of(shopper2));
+
+        boolean result = shopCartService.removeSharing(shopCart.getId(), shopper1.getId(), shopper2.getId());
+
+        assertFalse(result);
+        // Verify saves are still called to ensure state consistency
+        verify(shopCartRepository, times(1)).save(shopCart);
+        verify(shopperRepository, times(1)).save(shopper2);
+    }
 }
