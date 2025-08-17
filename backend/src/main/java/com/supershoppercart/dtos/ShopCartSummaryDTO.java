@@ -4,21 +4,29 @@ import com.supershoppercart.enums.ShopCartState;
 import com.supershoppercart.models.ShopCart;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Date;
 import java.util.List;
 
+@Getter
 public class ShopCartSummaryDTO {
+    // Getter methods
     @NotBlank private String identifier;
     @NotBlank private String dateKey;
     @NotNull private int itemCount;
     @NotNull private int purchasedCount;
+    // Existing getter/setter methods
+    @Setter
     private List<String> shopperIds;
     @NotBlank private String createdBy;
     @NotBlank private ShopCartState state;
     @NotBlank private Date createdAt;
+    @Setter
     private Date lastModified;
     @NotNull private boolean isTemplate;
+    @Setter
     private String templateName;
 
     public ShopCartSummaryDTO(ShopCart shopCart) {
@@ -33,63 +41,5 @@ public class ShopCartSummaryDTO {
         this.lastModified = shopCart.getLastModified();
         this.isTemplate = shopCart.isTemplate();
         this.templateName = shopCart.getTemplateName();
-    }
-
-    // Getter methods
-    public String getIdentifier() {
-        return identifier;
-    }
-
-    public String getDateKey() {
-        return dateKey;
-    }
-
-    public int getItemCount() {
-        return itemCount;
-    }
-
-    public int getPurchasedCount() {
-        return purchasedCount;
-    }
-
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public ShopCartState getState() {
-        return state;
-    }
-
-    public Date getCreatedAt() {
-        return createdAt;
-    }
-
-    public boolean isTemplate() {
-        return isTemplate;
-    }
-
-    // Existing getter/setter methods
-    public List<String> getShopperIds() {
-        return shopperIds;
-    }
-
-    public void setShopperIds(List<String> shopperIds) {
-        this.shopperIds = shopperIds;
-    }
-
-    public Date getLastModified() {
-        return lastModified;
-    }
-
-    public void setLastModified(Date lastModified) {
-        this.lastModified = lastModified;
-    }
-
-    public String getTemplateName() {
-        return templateName;
-    }
-
-    public void setTemplateName(String templateName) {
-        this.templateName = templateName;
     }
 }

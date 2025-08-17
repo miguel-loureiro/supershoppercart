@@ -643,4 +643,93 @@ The code will now work seamlessly in a Docker container, where you can inject th
 - Scalability: If your backend starts receiving a lot of traffic, you can scale it independently of the mobile part. 
   This optimizes cost and performance, as you're not paying for resources you don't need on the other side.
 
-For now all goog.
+For now all good.
+
+
+Perfect! Now I can see exactly what's happening. Your service logic is working correctly! Let me explain:
+What Your Service Does (Correctly) ✅
+In FirestoreService.saveShopCart():
+
+
+java
+// Step 1: Give ALL shoppers in shopperIds list EDIT permission
+for (String shopperId : shopCart.getShopperIds()) {
+shopCart.addOrUpdatePermission(shopperId, SharePermission.EDIT);
+}
+
+// Step 2: Override creator with ADMIN permission (this overwrites any existing permission)
+if (shopCart.getCreatedBy() != null) {
+shopCart.addOrUpdatePermission(shopCart.getCreatedBy(), SharePermission.ADMIN);
+}
+Your Test Scenario 📊
+
+
+java
+cart.setCreatedBy(testShopperId);  // testShopperId is the creator
+cart.setShopperIds(List.of(testShopperId, creatorShopperId));  // testShopperId is ALSO in shoppers list
+What happens:
+1. testShopperId gets EDIT permission (because it's in shopperIds)
+2. creatorShopperId gets EDIT permission (because it's in shopperIds)
+3. testShopperId gets ADMIN permission (because it's the creator - overwrites the EDIT)
+   Final result:
+* testShopperId: ADMIN ✅ (creator privilege)
+* creatorShopperId: EDIT ✅
+  Fix Your Test Assertion 🔧
+  Your test is wrong here:
+
+
+java
+// ❌ This is incorrect - assumes ALL shoppers have EDIT
+for (String shopperId : loaded.getShopperIds()) {
+SharePermission permission = loaded.getPermissionForShopper(shopperId);
+assertEquals(SharePermission.EDIT, permission, "Shopper " + shopperId + " should have EDIT permission");
+}
+Fix it:
+
+
+java
+// ✅ Correct test logic
+for (String shopperId : loaded.getShopperIds()) {
+SharePermission permission = loaded.getPermissionForShopper(shopperId);
+assertNotNull(permission, "Shopper " + shopperId + " should have permissions");
+
+    if (shopperId.equals(loaded.getCreatedBy())) {
+        assertEquals(SharePermission.ADMIN, permission, 
+            "Creator shopper " + shopperId + " should have ADMIN permission");
+    } else {
+        assertEquals(SharePermission.EDIT, permission, 
+            "Non-creator shopper " + shopperId + " should have EDIT permission");
+    }
+}
+
+// Remove this redundant check since we're already testing it above
+// SharePermission creatorPermission = loaded.getPermissionForShopper(loaded.getCreatedBy());
+// assertEquals(SharePermission.ADMIN, creatorPermission, "Creator should have ADMIN permission");
+Alternative: Test With Separate Creator 🎯
+If you want to test the "all shoppers get EDIT" scenario cleanly:
+
+
+java
+@Test
+void testShoppersGetEditPermission() throws Exception {
+ShopCart cart = new ShopCart();
+cart.setId(TEST_PREFIX + UUID.randomUUID().toString());
+cart.setName("Edit Permission Test Cart");
+cart.setCreatedBy(creatorShopperId);  // Creator not in shoppers list
+cart.setShopperIds(List.of(testShopperId));  // Only regular shopper
+
+    String savedId = firestoreService.saveShopCart(cart);
+    
+    DocumentSnapshot snapshot = firestore.collection("shopcarts").document(savedId).get().get();
+    ShopCart loaded = snapshot.toObject(ShopCart.class);
+
+    // Now this test will pass
+    SharePermission testShopperPermission = loaded.getPermissionForShopper(testShopperId);
+    SharePermission creatorPermission = loaded.getPermissionForShopper(creatorShopperId);
+    
+    assertEquals(SharePermission.EDIT, testShopperPermission, "Regular shopper should have EDIT");
+    assertEquals(SharePermission.ADMIN, creatorPermission, "Creator should have ADMIN");
+}
+Summary 🎯
+Your service is working perfectly! The issue is just that your test assumes all shoppers get EDIT permission, but it doesn't account for the fact that the creator always gets ADMIN permission, even if they're also in the shoppers list.
+This is actually the correct business logic - creators should always have admin privileges on their carts.

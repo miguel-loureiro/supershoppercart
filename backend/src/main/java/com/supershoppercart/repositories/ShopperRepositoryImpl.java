@@ -55,7 +55,7 @@ public class ShopperRepositoryImpl implements ShopperRepository {
             DocumentSnapshot doc = snapshot.getDocuments().get(0);
             Shopper shopper = doc.toObject(Shopper.class);
             shopper.setId(doc.getId());
-            return Optional.ofNullable(shopper);
+            return Optional.of(shopper);
         }
         return Optional.empty();
     }
@@ -69,7 +69,7 @@ public class ShopperRepositoryImpl implements ShopperRepository {
                     shopper.setId(doc.getId());
                     return shopper;
                 })
-                .filter(java.util.Objects::nonNull)
+                .filter(obj -> true)
                 .collect(Collectors.toList());
     }
 

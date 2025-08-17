@@ -1,6 +1,7 @@
 package com.supershoppercart.services;
 
 import com.google.cloud.firestore.*;
+import com.google.firebase.cloud.FirestoreClient;
 import com.supershoppercart.config.FirebaseConfig;
 import com.supershoppercart.dtos.ShopCartDetailDTO;
 import com.supershoppercart.enums.SharePermission;

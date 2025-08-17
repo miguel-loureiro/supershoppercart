@@ -44,7 +44,6 @@ public class ShopCartServiceTest {
     private Shopper shopper1;
     private Shopper shopper2;
     private ShopCart shopCart;
-    private ShopCart templateShopCart;
     private GroceryItem item1;
     private GroceryItem item2;
 
@@ -73,7 +72,7 @@ public class ShopCartServiceTest {
         shopCart.setSharePermissions(new ArrayList<>());
 
 
-        templateShopCart = new ShopCart();
+        ShopCart templateShopCart = new ShopCart();
         templateShopCart.setId("template1");
         templateShopCart.setTemplate(true);
         templateShopCart.setName("Weekly groceries");
@@ -339,7 +338,7 @@ public class ShopCartServiceTest {
         ShopCart newCartFromTemplate = new ShopCart();
         newCartFromTemplate.setId("newCartFromTemplateId");
         newCartFromTemplate.setName("Weekly Grocery Template");
-        newCartFromTemplate.setShopperIds(Arrays.asList("creatorId"));
+        newCartFromTemplate.setShopperIds(List.of("creatorId"));
         newCartFromTemplate.setItems(new ArrayList<>(Arrays.asList(item1, item2)));
         newCartFromTemplate.setTemplate(false);
 

@@ -50,8 +50,7 @@ public class Shopper {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Shopper)) return false;
-        Shopper shopper = (Shopper) o;
+        if (!(o instanceof Shopper shopper)) return false;
         return Objects.equals(id, shopper.id) &&
                 Objects.equals(email, shopper.email) &&
                 Objects.equals(name, shopper.name) &&

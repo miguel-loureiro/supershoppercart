@@ -20,20 +20,4 @@ public class RefreshToken {
         this.deviceId = deviceId;
         this.expiry = expiry;
     }
-
-    public void setToken(String token) {
-        this.token = token;
-    }
-
-    public void setShopperId(String shopperId) {
-        this.shopperId = shopperId;
-    }
-
-    public void setDeviceId(String deviceId) {
-        this.deviceId = deviceId;
-    }
-
-    public void setExpiry(long expiry) {
-        this.expiry = expiry;
-    }
 }

@@ -1,6 +1,5 @@
 package com.supershoppercart.services;
 
-import com.google.cloud.firestore.DocumentReference;
 import com.supershoppercart.dtos.ShopCartDetailDTO;
 import com.supershoppercart.enums.SharePermission;
 import com.supershoppercart.models.GroceryItem;
@@ -127,14 +126,13 @@ public class ShopCartService {
     /**
      * Marks an item in a shop cart as purchased.
      *
-     * @param cartId The ID of the shop cart.
+     * @param cartId      The ID of the shop cart.
      * @param designation The designation of the item to mark.
-     * @return The updated ShopCart.
-     * @throws ExecutionException If a Firestore operation fails.
-     * @throws InterruptedException If the thread is interrupted.
+     * @throws ExecutionException       If a Firestore operation fails.
+     * @throws InterruptedException     If the thread is interrupted.
      * @throws IllegalArgumentException If the cart or item is not found.
      */
-    public ShopCart markItemAsPurchased(String cartId, String designation)
+    public void markItemAsPurchased(String cartId, String designation)
             throws ExecutionException, InterruptedException, IllegalArgumentException {
         Optional<ShopCart> cartOptional = shopCartRepository.findById(cartId);
         if (cartOptional.isPresent()) {
@@ -150,7 +148,7 @@ public class ShopCartService {
             if (!itemFound) {
                 throw new IllegalArgumentException("Grocery item with designation " + designation + " not found in cart " + cartId);
             }
-            return shopCartRepository.save(cart);
+            shopCartRepository.save(cart);
         } else {
             throw new IllegalArgumentException("ShopCart with ID " + cartId + " not found.");
         }

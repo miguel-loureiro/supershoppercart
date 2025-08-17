@@ -9,7 +9,6 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -91,14 +90,12 @@ public class ShopCart {
      * Removes the sharing permission for a specific shopper.
      *
      * @param shopperId The ID of the shopper whose permission to remove.
-     * @return true if a permission was removed, false otherwise.
      */
-    public boolean removePermission(String shopperId) {
+    public void removePermission(String shopperId) {
         boolean removed = sharePermissions.removeIf(entry -> entry.getShopperId().equals(shopperId));
         if (removed) {
             this.updateLastInteraction(); // Update interaction time if permission removed
         }
-        return removed;
     }
 
     // --- State Management and Lifecycle Methods ---
