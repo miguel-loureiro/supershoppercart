@@ -46,7 +46,7 @@ public class FirebaseConfig {
     @Value("${firebase.project.id.dev:devsupershoppercart}")
     private String devProjectIdProp;
 
-    @Value("${firebase.service.account.path.dev:classpath:firebase-service-account-dev.json}")
+    @Value("${firebase.service.account.path.dev:classpath:firebase-service-accounts/dev-service-account.json}")
     private String serviceAccountPathDev;
 
     @Value("${FIREBASE_SERVICE_ACCOUNT_B64_DEV:}")
