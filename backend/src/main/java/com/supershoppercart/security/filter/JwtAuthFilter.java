@@ -42,6 +42,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
+        // Log the Authorization header to verify its presence and format
+        if (authHeader == null) {
+            System.out.println("Authorization header is missing.");
+        } else {
+            System.out.println("Authorization header found: " + authHeader);
+        }
+
         // Check if Authorization header exists and starts with "Bearer "
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
@@ -49,6 +56,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         String jwt = authHeader.substring(7); // Extract the JWT token
+        System.out.println("Extracted JWT: " + jwt);
 
         // Check if a user is already authenticated in the current security context
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
