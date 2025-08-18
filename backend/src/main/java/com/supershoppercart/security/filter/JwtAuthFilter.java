@@ -17,8 +17,13 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
-@Component // Mark as a Spring component for detection and injection
-public class JwtAuthFilter extends OncePerRequestFilter { // Renamed from JwtAuthenticationFilter
+/**
+ * Filter to handle JWT authentication.
+ * It extracts the JWT from the Authorization header, validates it,
+ * and sets the authenticated shopper in the SecurityContext.
+ */
+@Component
+public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final ShopperRepository shopperRepository;
     private final JwtTokenService jwtTokenService;
@@ -46,7 +51,6 @@ public class JwtAuthFilter extends OncePerRequestFilter { // Renamed from JwtAut
         String jwt = authHeader.substring(7); // Extract the JWT token
 
         // Check if a user is already authenticated in the current security context
-        // This prevents unnecessary processing if authentication has already happened
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 // 1. Validate the JWT token
@@ -62,7 +66,6 @@ public class JwtAuthFilter extends OncePerRequestFilter { // Renamed from JwtAut
                             Shopper shopper = shopperOptional.get();
 
                             // 4. Create an authentication token
-                            // For a simple authentication, authorities can be empty or derived from Shopper roles
                             UsernamePasswordAuthenticationToken authentication =
                                     new UsernamePasswordAuthenticationToken(shopper, null, Collections.emptyList());
 
@@ -74,23 +77,30 @@ public class JwtAuthFilter extends OncePerRequestFilter { // Renamed from JwtAut
                             System.out.println("Authenticated Shopper with ID: " + shopper.getId());
                         } else {
                             System.out.println("Shopper not found for ID: " + shopperId);
+                            // Explicitly send an error for not found user
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Shopper not found for token.");
+                            return;
                         }
                     } else {
                         System.out.println("Shopper ID could not be extracted from token.");
+                        // Explicitly send an error for un-extractable ID
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token payload.");
+                        return;
                     }
                 } else {
                     System.out.println("Invalid JWT token: " + jwt);
+                    // Explicitly send an error for invalid token
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token.");
+                    return;
                 }
             } catch (ExecutionException | InterruptedException e) {
-                // Log the exception
                 System.err.println("Error during authentication process: " + e.getMessage());
-                // Depending on your error handling strategy, you might want to
-                // set a specific HTTP status code or rethrow a specific exception.
-                // For now, rethrow as ServletException to let Spring handle it or GlobalExceptionHandler.
-                throw new ServletException("Authentication failed due to data access error.", e);
-            } catch (Exception e) { // Catch any other unexpected exceptions from token service
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication failed due to data access error.");
+                return;
+            } catch (Exception e) {
                 System.err.println("Unexpected error during token processing: " + e.getMessage());
-                throw new ServletException("Token processing error.", e);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token processing error.");
+                return;
             }
         }
 

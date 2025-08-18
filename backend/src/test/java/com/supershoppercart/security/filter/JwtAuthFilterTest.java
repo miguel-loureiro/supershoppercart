@@ -16,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.io.IOException;
@@ -78,8 +79,12 @@ class JwtAuthFilterTest {
         jwtAuthFilter.doFilterInternal(request, response, filterChain);
 
         // Assert
-        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertNotNull(auth);
+        assertEquals(shopper, auth.getPrincipal());
+        assertInstanceOf(UsernamePasswordAuthenticationToken.class, auth);
         verify(filterChain).doFilter(request, response);
+        verify(response, never()).sendError(anyInt(), anyString());
     }
 
     @Test
@@ -95,6 +100,7 @@ class JwtAuthFilterTest {
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(filterChain).doFilter(request, response);
         verify(jwtTokenService, never()).isTokenValid(any());
+        verify(response, never()).sendError(anyInt(), anyString());
     }
 
     @Test
@@ -110,11 +116,12 @@ class JwtAuthFilterTest {
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(filterChain).doFilter(request, response);
         verify(jwtTokenService, never()).isTokenValid(any());
+        verify(response, never()).sendError(anyInt(), anyString());
     }
 
     @Test
-    @DisplayName("Should not authenticate if the token is invalid")
-    void doFilterInternal_invalidToken_shouldNotAuthenticate() throws ServletException, IOException, ExecutionException, InterruptedException {
+    @DisplayName("Should send unauthorized error if the token is invalid")
+    void doFilterInternal_invalidToken_shouldSendUnauthorizedError() throws ServletException, IOException, ExecutionException, InterruptedException {
         // Arrange
         when(request.getHeader("Authorization")).thenReturn("Bearer " + VALID_TOKEN);
         when(jwtTokenService.isTokenValid(VALID_TOKEN)).thenReturn(false);
@@ -124,12 +131,13 @@ class JwtAuthFilterTest {
 
         // Assert
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        verify(filterChain).doFilter(request, response);
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token.");
+        verify(filterChain, never()).doFilter(request, response);
     }
 
     @Test
-    @DisplayName("Should not authenticate if shopper ID cannot be extracted")
-    void doFilterInternal_noShopperId_shouldNotAuthenticate() throws ServletException, IOException, ExecutionException, InterruptedException {
+    @DisplayName("Should send unauthorized error if shopper ID cannot be extracted")
+    void doFilterInternal_noShopperId_shouldSendUnauthorizedError() throws ServletException, IOException, ExecutionException, InterruptedException {
         // Arrange
         when(request.getHeader("Authorization")).thenReturn("Bearer " + VALID_TOKEN);
         when(jwtTokenService.isTokenValid(VALID_TOKEN)).thenReturn(true);
@@ -140,13 +148,14 @@ class JwtAuthFilterTest {
 
         // Assert
         assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token payload.");
         verify(shopperRepository, never()).findById(any());
-        verify(filterChain).doFilter(request, response);
+        verify(filterChain, never()).doFilter(request, response);
     }
 
     @Test
-    @DisplayName("Should not authenticate if shopper is not found in the repository")
-    void doFilterInternal_shopperNotFound_shouldNotAuthenticate() throws ServletException, IOException, ExecutionException, InterruptedException {
+    @DisplayName("Should send unauthorized error if shopper is not found in the repository")
+    void doFilterInternal_shopperNotFound_shouldSendUnauthorizedError() throws ServletException, IOException, ExecutionException, InterruptedException {
         // Arrange
         when(request.getHeader("Authorization")).thenReturn("Bearer " + VALID_TOKEN);
         when(jwtTokenService.isTokenValid(VALID_TOKEN)).thenReturn(true);
@@ -158,24 +167,76 @@ class JwtAuthFilterTest {
 
         // Assert
         assertNull(SecurityContextHolder.getContext().getAuthentication());
-        verify(filterChain).doFilter(request, response);
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Shopper not found for token.");
+        verify(filterChain, never()).doFilter(request, response);
     }
 
     @Test
-    @DisplayName("Should throw ServletException if token service throws an exception")
-    void doFilterInternal_tokenServiceThrowsException_shouldThrowServletException() throws ServletException, IOException, ExecutionException, InterruptedException {
+    @DisplayName("Should send unauthorized error if token service throws RuntimeException")
+    void doFilterInternal_tokenServiceThrowsRuntimeException_shouldSendUnauthorizedError() throws ServletException, IOException, ExecutionException, InterruptedException {
         // Arrange
         when(request.getHeader("Authorization")).thenReturn("Bearer " + VALID_TOKEN);
-        when(jwtTokenService.isTokenValid(VALID_TOKEN)).thenReturn(true);
-        when(jwtTokenService.extractShopperId(VALID_TOKEN)).thenThrow(new RuntimeException("Token error"));
+        when(jwtTokenService.isTokenValid(VALID_TOKEN)).thenThrow(new RuntimeException("Token processing error"));
 
-        // Act & Assert
-        assertThrows(ServletException.class, () -> {
-            jwtAuthFilter.doFilterInternal(request, response, filterChain);
-        });
+        // Act
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
 
-        // Verify that the filter chain was not called
-        verify(filterChain, never()).doFilter(any(), any());
+        // Assert
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token processing error.");
+        verify(filterChain, never()).doFilter(request, response);
+    }
+
+    @Test
+    @DisplayName("Should not process token if user is already authenticated")
+    void doFilterInternal_alreadyAuthenticated_shouldSkipTokenProcessing() throws ServletException, IOException {
+        // Arrange
+        when(request.getHeader("Authorization")).thenReturn("Bearer " + VALID_TOKEN);
+
+        // Set up existing authentication
+        Authentication existingAuth = new UsernamePasswordAuthenticationToken("existingUser", null, Collections.emptyList());
+        SecurityContextHolder.getContext().setAuthentication(existingAuth);
+
+        // Act
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        assertEquals(existingAuth, SecurityContextHolder.getContext().getAuthentication());
+        verify(jwtTokenService, never()).isTokenValid(any());
+        verify(filterChain).doFilter(request, response);
+        verify(response, never()).sendError(anyInt(), anyString());
+    }
+
+    @Test
+    @DisplayName("Should handle empty Authorization header")
+    void doFilterInternal_emptyAuthorizationHeader_shouldNotAuthenticate() throws ServletException, IOException {
+        // Arrange
+        when(request.getHeader("Authorization")).thenReturn("");
+
+        // Act
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(filterChain).doFilter(request, response);
+        verify(jwtTokenService, never()).isTokenValid(any());
+        verify(response, never()).sendError(anyInt(), anyString());
+    }
+
+    @Test
+    @DisplayName("Should handle Bearer token with only 'Bearer' keyword")
+    void doFilterInternal_bearerOnlyHeader_shouldNotAuthenticate() throws ServletException, IOException {
+        // Arrange
+        when(request.getHeader("Authorization")).thenReturn("Bearer");
+
+        // Act
+        jwtAuthFilter.doFilterInternal(request, response, filterChain);
+
+        // Assert
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verify(filterChain).doFilter(request, response);
+        verify(jwtTokenService, never()).isTokenValid(any());
+        verify(response, never()).sendError(anyInt(), anyString());
     }
 
     @Test
