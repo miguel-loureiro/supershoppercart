@@ -8,12 +8,17 @@ import lombok.Setter;
 @Setter
 @Getter
 public class DevLoginRequestDTO {
-
-    // Getters and Setters
-    @NotBlank(message = "Email cannot be blank")
-    @Email(message = "Email should be valid")
+    // Getters and setters
+    @Email
+    @NotBlank
     private String email;
 
-    @NotBlank(message = "Password cannot be blank")
-    private String password;
+    private String deviceId; // Optional for dev
+
+    public DevLoginRequestDTO() {}
+
+    public DevLoginRequestDTO(String email, String deviceId) {
+        this.email = email;
+        this.deviceId = deviceId;
+    }
 }

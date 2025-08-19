@@ -21,7 +21,6 @@ import java.util.Optional;
 @RequestMapping("/api/v1/dev/auth")
 @Profile("dev")
 public class DevAuthController {
-
     private static final Logger logger = LoggerFactory.getLogger(DevAuthController.class);
     private final JwtTokenService jwtTokenService;
     private final ShopperRepository shopperRepository;
@@ -34,12 +33,10 @@ public class DevAuthController {
     @PostMapping("/login")
     public ResponseEntity<DevLoginResponseDTO> devLogin(@Valid @RequestBody DevLoginRequestDTO request) {
         logger.info("Dev login request received for email: {}", request.getEmail());
-
         try {
             // Find or create a shopper for this dev user
             Optional<Shopper> existing = shopperRepository.findByEmail(request.getEmail());
             Shopper shopper;
-
             if (existing.isPresent()) {
                 shopper = existing.get();
                 logger.debug("Found existing dev shopper: {}", shopper.getEmail());
@@ -50,15 +47,20 @@ public class DevAuthController {
                 logger.debug("Created new dev shopper: {}", shopper.getEmail());
             }
 
-            // Generate an access token. For simplicity, we don't need a refresh token in dev.
-            String accessToken = jwtTokenService.generateAccessToken(shopper.getId(), "dev-device-id");
-            logger.info("Successfully generated JWT for dev user: {}", request.getEmail());
+            // Use the provided deviceId or a default dev device ID
+            String deviceId = request.getDeviceId() != null ? request.getDeviceId() : "dev-device-id";
 
-            return ResponseEntity.ok(new DevLoginResponseDTO(accessToken));
+            // Generate both access and refresh tokens
+            String accessToken = jwtTokenService.generateAccessToken(shopper.getId(), deviceId);
+            String refreshToken = jwtTokenService.generateRefreshToken(shopper.getId());
+
+            logger.info("Successfully generated JWT tokens for dev user: {}", request.getEmail());
+            return ResponseEntity.ok(new DevLoginResponseDTO(accessToken, refreshToken));
 
         } catch (Exception e) {
             logger.error("Failed to process dev login: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().body(new DevLoginResponseDTO("Error: " + e.getMessage()));
+            return ResponseEntity.internalServerError()
+                    .body(new DevLoginResponseDTO("Error: " + e.getMessage()));
         }
     }
 }

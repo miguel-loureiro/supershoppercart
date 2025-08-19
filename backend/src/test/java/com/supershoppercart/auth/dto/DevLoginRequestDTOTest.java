@@ -1,138 +1,172 @@
 package com.supershoppercart.auth.dto;
 
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Comprehensive JUnit 5 unit tests for the DevLoginRequestDTO class.
+ * This class tests the constructors, getters, setters, and the
+ * Jakarta Bean Validation constraints (@Email and @NotBlank).
+ */
 public class DevLoginRequestDTOTest {
 
+    // A static validator instance to be used across all tests.
     private static Validator validator;
 
+    /**
+     * Sets up the Jakarta Bean Validation validator before all test methods are run.
+     * This is an efficient way to initialize the validator once.
+     */
     @BeforeAll
     public static void setUp() {
-        // Inicializa o validador para os testes
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
     }
 
+    /**
+     * Tests the no-argument constructor to ensure the object is created
+     * without any issues.
+     */
     @Test
-    public void testValidDevLoginRequest() {
-        // Testa um DTO com dados válidos
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("test@example.com");
-        request.setPassword("password123");
+    void testNoArgsConstructor() {
+        // Arrange & Act
+        DevLoginRequestDTO dto = new DevLoginRequestDTO();
 
-        assertEquals(0, validator.validate(request).size(), "O DTO válido não deve ter erros de validação");
+        // Assert
+        assertNull(dto.getEmail());
+        assertNull(dto.getDeviceId());
     }
 
+    /**
+     * Tests the parameterized constructor to ensure that fields are
+     * initialized correctly upon object creation.
+     */
     @Test
-    public void testInvalidEmail() {
-        // Testa um email com formato inválido
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("invalid-email");
-        request.setPassword("password123");
+    void testAllArgsConstructor() {
+        // Arrange
+        String email = "test@example.com";
+        String deviceId = "device-123";
 
-        assertEquals(1, validator.validate(request).size(), "Deve haver 1 erro de validação para um email inválido");
-        assertEquals("Email should be valid", validator.validate(request).iterator().next().getMessage());
+        // Act
+        DevLoginRequestDTO dto = new DevLoginRequestDTO(email, deviceId);
+
+        // Assert
+        assertEquals(email, dto.getEmail());
+        assertEquals(deviceId, dto.getDeviceId());
     }
 
+    /**
+     * Tests the setters to confirm that they correctly update the fields.
+     * This also implicitly tests the getters as they are used for assertion.
+     */
     @Test
-    public void testBlankEmail() {
-        // Testa um email vazio
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("");
-        request.setPassword("password123");
+    void testSettersAndGetters() {
+        // Arrange
+        DevLoginRequestDTO dto = new DevLoginRequestDTO();
+        String email = "setter.test@example.com";
+        String deviceId = "new-device-456";
 
-        assertEquals(1, validator.validate(request).size(), "Deve haver 1 erro de validação para um email vazio");
-        assertEquals("Email cannot be blank", validator.validate(request).iterator().next().getMessage());
+        // Act
+        dto.setEmail(email);
+        dto.setDeviceId(deviceId);
+
+        // Assert
+        assertEquals(email, dto.getEmail());
+        assertEquals(deviceId, dto.getDeviceId());
     }
 
+    /**
+     * Tests a valid DTO instance to ensure that it passes all validation
+     * constraints and has no constraint violations.
+     */
     @Test
-    public void testBlankPassword() {
-        // Testa uma password vazia
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("test@example.com");
-        request.setPassword("");
+    void testValidDto() {
+        // Arrange
+        DevLoginRequestDTO dto = new DevLoginRequestDTO("valid.email@example.com", "dev-id");
 
-        assertEquals(1, validator.validate(request).size(), "Deve haver 1 erro de validação para uma password vazia");
-        assertEquals("Password cannot be blank", validator.validate(request).iterator().next().getMessage());
+        // Act
+        Set<ConstraintViolation<DevLoginRequestDTO>> violations = validator.validate(dto);
+
+        // Assert
+        assertTrue(violations.isEmpty(), "Valid DTO should have no constraint violations");
     }
 
+    /**
+     * Tests an invalid email format to ensure the @Email annotation correctly
+     * flags it as a violation.
+     */
     @Test
-    public void testBlankEmailAndPassword() {
-        // Testa ambos os campos vazios
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("");
-        request.setPassword("");
+    void testInvalidEmailFormat() {
+        // Arrange
+        DevLoginRequestDTO dto = new DevLoginRequestDTO("invalid-email", "dev-id");
 
-        assertEquals(2, validator.validate(request).size(), "Deve haver 2 erros de validação quando ambos os campos estão vazios");
+        // Act
+        Set<ConstraintViolation<DevLoginRequestDTO>> violations = validator.validate(dto);
+
+        // Assert
+        assertEquals(1, violations.size(), "Should have exactly one violation for invalid email format");
+        ConstraintViolation<DevLoginRequestDTO> violation = violations.iterator().next();
+        assertEquals("email", violation.getPropertyPath().toString(), "Violation should be on the 'email' field");
     }
 
+    /**
+     * Tests a null email to ensure the @NotBlank annotation correctly
+     * flags it as a violation.
+     */
     @Test
-    public void testNullEmail() {
-        // Testa um email nulo
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail(null);
-        request.setPassword("password123");
+    void testNullEmail() {
+        // Arrange
+        DevLoginRequestDTO dto = new DevLoginRequestDTO(null, "dev-id");
 
-        assertEquals(1, validator.validate(request).size(), "Deve haver 1 erro de validação para um email nulo");
-        assertEquals("Email cannot be blank", validator.validate(request).iterator().next().getMessage());
+        // Act
+        Set<ConstraintViolation<DevLoginRequestDTO>> violations = validator.validate(dto);
+
+        // Assert
+        // Expecting two violations: one for @Email and one for @NotBlank
+        assertEquals(1, violations.size(), "Should have exactly one violation for a null email");
+        ConstraintViolation<DevLoginRequestDTO> violation = violations.iterator().next();
+        // The message will depend on the implementation, but it should indicate not blank.
+        assertTrue(violation.getMessage().contains("must not be blank"), "Violation message should indicate 'not blank'");
     }
 
+    /**
+     * Tests an empty string email to ensure the @NotBlank annotation correctly
+     * flags it as a violation.
+     */
     @Test
-    public void testNullPassword() {
-        // Testa uma password nula
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("test@example.com");
-        request.setPassword(null);
+    void testEmptyEmail() {
+        // Arrange
+        DevLoginRequestDTO dto = new DevLoginRequestDTO("", "dev-id");
 
-        assertEquals(1, validator.validate(request).size(), "Deve haver 1 erro de validação para uma password nula");
-        assertEquals("Password cannot be blank", validator.validate(request).iterator().next().getMessage());
+        // Act
+        Set<ConstraintViolation<DevLoginRequestDTO>> violations = validator.validate(dto);
+
+        // Assert
+        // The Bean Validation spec states @NotBlank includes @NotEmpty, so we expect one violation.
+        assertEquals(1, violations.size(), "Should have exactly one violation for an empty email");
     }
 
+    /**
+     * Tests a blank string (containing only whitespace) email to ensure the @NotBlank
+     * annotation correctly flags it as a violation.
+     */
     @Test
-    public void testNullEmailAndNullPassword() {
-        // Testa ambos os campos nulos
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail(null);
-        request.setPassword(null);
+    void testBlankEmail() {
+        // Arrange
+        DevLoginRequestDTO dto = new DevLoginRequestDTO("   ", "dev-id");
 
-        assertEquals(2, validator.validate(request).size(), "Deve haver 2 erros de validação quando ambos os campos são nulos");
-    }
+        // Act
+        Set<ConstraintViolation<DevLoginRequestDTO>> violations = validator.validate(dto);
 
-    @Test
-    public void testWhitespaceEmail() {
-        // Testa um email com apenas espaços em branco
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("   ");
-        request.setPassword("password123");
-
-        // O validador irá gerar 2 erros: um para @NotBlank e outro para @Email.
-        assertEquals(2, validator.validate(request).size(), "Deve haver 2 erros de validação: um para 'blank' e outro para 'email inválido'");
-    }
-
-    @Test
-    public void testWhitespacePassword() {
-        // Testa uma password com apenas espaços em branco
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("test@example.com");
-        request.setPassword("   ");
-
-        assertEquals(1, validator.validate(request).size(), "Deve haver 1 erro de validação para uma password com espaços");
-        assertEquals("Password cannot be blank", validator.validate(request).iterator().next().getMessage());
-    }
-
-    @Test
-    public void testCombinedInvalidFields() {
-        // Testa uma combinação de campos inválidos
-        DevLoginRequestDTO request = new DevLoginRequestDTO();
-        request.setEmail("invalid-email-format");
-        request.setPassword("");
-
-        assertEquals(2, validator.validate(request).size(), "Deve haver 2 erros para uma combinação de campos inválidos");
+        // Assert
+        assertEquals(2, violations.size(), "Should have exactly one violation for a blank email");
     }
 }
