@@ -1,0 +1,4 @@
+<resources>
+    <string name="api_base_url">https://supershoppercart-dev.onrender.com</string>
+    <string name="google_client_id">542103387549-aii4q6888tck4ga2jqdm1n993jocgd3p.apps.googleusercontent.com</string>
+</resources>

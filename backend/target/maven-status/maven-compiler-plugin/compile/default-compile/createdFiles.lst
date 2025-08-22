@@ -20,7 +20,6 @@ com/supershoppercart/models/RefreshToken.class
 com/supershoppercart/dtos/ShopperSummaryDTO.class
 com/supershoppercart/repositories/ShopperRepositoryImpl.class
 com/supershoppercart/security/filter/JwtAuthFilter.class
-com/supershoppercart/controllers/DevAuthController.class
 com/supershoppercart/config/FirebaseConfig$NoCredentials.class
 com/supershoppercart/models/SharePermissionEntry.class
 com/supershoppercart/exceptions/GlobalExceptionHandler.class
@@ -32,6 +31,7 @@ com/supershoppercart/dtos/ShopCartDetailDTO.class
 com/supershoppercart/dtos/ShareCartRequestDTO.class
 com/supershoppercart/controllers/AuthController.class
 com/supershoppercart/enums/ShopCartState.class
+com/supershoppercart/services/AuthService.class
 com/supershoppercart/SuperShopperCartApplication.class
 com/supershoppercart/services/ShopperService.class
 com/supershoppercart/services/FirestoreService.class

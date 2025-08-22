@@ -5,7 +5,6 @@
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/config/SecurityConfig.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/AdminController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/AuthController.java
-/Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/DevAuthController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/HomeController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/ShopCartController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/dtos/CreateShopCartRequestDTO.java
