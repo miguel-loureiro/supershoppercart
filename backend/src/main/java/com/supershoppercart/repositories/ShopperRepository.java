@@ -4,6 +4,7 @@ import com.supershoppercart.models.Shopper;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -63,4 +64,10 @@ public interface ShopperRepository {
      * @throws InterruptedException If the current thread is interrupted while waiting.
      */
     void deleteAll() throws ExecutionException, InterruptedException;
+
+    /**
+     * @param email
+     * @return
+     */
+    CompletableFuture<Optional<Shopper>> findByEmailAsync(String email);
 }

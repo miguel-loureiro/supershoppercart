@@ -8,14 +8,22 @@ import com.supershoppercart.models.RefreshToken;
 import com.supershoppercart.models.Shopper;
 import com.supershoppercart.repositories.ShopperRepository;
 import com.supershoppercart.security.GoogleTokenVerifier;
+import com.supershoppercart.services.AuthService;
 import com.supershoppercart.services.JwtTokenService;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -25,515 +33,478 @@ import static org.mockito.Mockito.*;
 class AuthControllerTest {
 
     @Mock
-    private JwtTokenService jwtTokenService;
-
-    @Mock
-    private GoogleTokenVerifier googleTokenVerifier;
-
-    @Mock
-    private ShopperRepository shopperRepository;
-
-    @Mock
-    private Firestore firestore;
+    private AuthService authService;
 
     @InjectMocks
     private AuthController authController;
 
     private final String validIdToken = "valid-google-id-token";
     private final String deviceId = "device-123";
-    private final String email = "test@example.com";
-    private final String name = "Test User";
-
-    private GoogleIdToken.Payload mockPayload;
 
     @Test
+    @DisplayName("Login with Google - Missing Authorization header")
     void testLoginWithGoogle_MissingAuthHeader() throws Exception {
-        ResponseEntity<?> response = authController.loginWithGoogle(null, deviceId);
+        // Given
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body(Map.of("error", "Missing or invalid Authorization header"))
+        );
+        when(authService.loginWithGoogleAsync(null, deviceId)).thenReturn(expectedResponse);
 
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(null, deviceId);
+        ResponseEntity<?> response = responseF.get();
+
+        // Then
         assertEquals(400, response.getStatusCode().value());
-        assertEquals("Missing or invalid Authorization header", response.getBody());
+        assertEquals(Map.of("error", "Missing or invalid Authorization header"), response.getBody());
+        verify(authService).loginWithGoogleAsync(null, deviceId);
     }
 
     @Test
+    @DisplayName("Login with Google - Invalid Authorization header format")
     void testLoginWithGoogle_InvalidAuthHeader() throws Exception {
-        ResponseEntity<?> response = authController.loginWithGoogle("InvalidFormat " + validIdToken, deviceId);
+        // Given
+        String invalidAuthHeader = "InvalidFormat " + validIdToken;
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body(Map.of("error", "Missing or invalid Authorization header"))
+        );
+        when(authService.loginWithGoogleAsync(invalidAuthHeader, deviceId)).thenReturn(expectedResponse);
 
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(invalidAuthHeader, deviceId);
+        ResponseEntity<?> response = responseF.get();
+
+        // Then
         assertEquals(400, response.getStatusCode().value());
-        assertEquals("Missing or invalid Authorization header", response.getBody());
+        assertEquals(Map.of("error", "Missing or invalid Authorization header"), response.getBody());
+        verify(authService).loginWithGoogleAsync(invalidAuthHeader, deviceId);
     }
 
     @Test
+    @DisplayName("Login with Google - Missing Device ID")
     void testLoginWithGoogle_MissingDeviceId() throws Exception {
-        ResponseEntity<?> response = authController.loginWithGoogle("Bearer " + validIdToken, null);
+        // Given
+        String authHeader = "Bearer " + validIdToken;
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body(Map.of("error", "Missing X-Device-Id header"))
+        );
+        when(authService.loginWithGoogleAsync(authHeader, null)).thenReturn(expectedResponse);
 
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(authHeader, null);
+        ResponseEntity<?> response = responseF.get();
+
+        // Then
         assertEquals(400, response.getStatusCode().value());
-        assertEquals("Missing X-Device-Id header", response.getBody());
+        assertEquals(Map.of("error", "Missing X-Device-Id header"), response.getBody());
+        verify(authService).loginWithGoogleAsync(authHeader, null);
     }
 
     @Test
+    @DisplayName("Login with Google - Blank Device ID")
     void testLoginWithGoogle_BlankDeviceId() throws Exception {
-        ResponseEntity<?> response = authController.loginWithGoogle("Bearer " + validIdToken, "");
+        // Given
+        String authHeader = "Bearer " + validIdToken;
+        String blankDeviceId = "";
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body(Map.of("error", "Missing X-Device-Id header"))
+        );
+        when(authService.loginWithGoogleAsync(authHeader, blankDeviceId)).thenReturn(expectedResponse);
 
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(authHeader, blankDeviceId);
+        ResponseEntity<?> response = responseF.get();
+
+        // Then
         assertEquals(400, response.getStatusCode().value());
-        assertEquals("Missing X-Device-Id header", response.getBody());
+        assertEquals(Map.of("error", "Missing X-Device-Id header"), response.getBody());
+        verify(authService).loginWithGoogleAsync(authHeader, blankDeviceId);
     }
 
     @Test
+    @DisplayName("Login with Google - Invalid Google token")
     void testLoginWithGoogle_InvalidGoogleToken() throws Exception {
-        when(googleTokenVerifier.verify(validIdToken)).thenReturn(null);
+        // Given
+        String authHeader = "Bearer " + validIdToken;
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid Google token"))
+        );
+        when(authService.loginWithGoogleAsync(authHeader, deviceId)).thenReturn(expectedResponse);
 
-        ResponseEntity<?> response = authController.loginWithGoogle("Bearer " + validIdToken, deviceId);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(authHeader, deviceId);
+        ResponseEntity<?> response = responseF.get();
 
+        // Then
         assertEquals(401, response.getStatusCode().value());
-        assertEquals("Invalid Google token", response.getBody());
+        assertEquals(Map.of("error", "Invalid Google token"), response.getBody());
+        verify(authService).loginWithGoogleAsync(authHeader, deviceId);
     }
 
     @Test
+    @DisplayName("Login with Google - Existing shopper success")
     void testLoginWithGoogle_ExistingShopper_Success() throws Exception {
-        // Setup mocks for this specific test
-        GoogleIdToken.Payload mockPayload = mock(GoogleIdToken.Payload.class);
-        when(mockPayload.getEmail()).thenReturn(email);
-        when(mockPayload.get("name")).thenReturn(name);
+        // Given
+        String authHeader = "Bearer " + validIdToken;
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.ok(Map.of(
+                        "accessToken", "access-token",
+                        "refreshToken", "refresh-token"
+                ))
+        );
+        when(authService.loginWithGoogleAsync(authHeader, deviceId)).thenReturn(expectedResponse);
 
-        Shopper mockShopper = new Shopper(email, name);
-        mockShopper.setId("shopper123");
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(authHeader, deviceId);
+        ResponseEntity<?> response = responseF.get();
 
-        // Step 1: Mock the Google token verification
-        when(googleTokenVerifier.verify(validIdToken)).thenReturn(mockPayload);
-
-        // Step 2: Mock the shopper repository to find an existing shopper
-        when(shopperRepository.findByEmail(email)).thenReturn(Optional.of(mockShopper));
-
-        // Step 3: Mock the JWT token service to return valid tokens
-        when(jwtTokenService.generateAccessToken(mockShopper.getId(), deviceId)).thenReturn("access-token");
-        when(jwtTokenService.generateRefreshToken(mockShopper.getId())).thenReturn("refresh-token");
-        when(jwtTokenService.getRefreshTokenExpiration()).thenReturn(7 * 24 * 60 * 60 * 1000L);
-
-        // Step 4: Mock the Firestore calls for saving the refresh token
-        CollectionReference collectionRef = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<WriteResult> future = ApiFutures.immediateFuture(mock(WriteResult.class));
-
-        when(firestore.collection("refresh_tokens")).thenReturn(collectionRef);
-        when(collectionRef.document("refresh-token")).thenReturn(docRef);
-        when(docRef.set(any(RefreshToken.class))).thenReturn(future);
-
-        // Act
-        ResponseEntity<?> response = authController.loginWithGoogle("Bearer " + validIdToken, deviceId);
-
-        // Assert
+        // Then
         assertEquals(200, response.getStatusCode().value());
         @SuppressWarnings("unchecked")
         Map<String, String> body = (Map<String, String>) response.getBody();
         assertNotNull(body);
         assertEquals("access-token", body.get("accessToken"));
         assertEquals("refresh-token", body.get("refreshToken"));
-
-        // Verify interactions
-        verify(googleTokenVerifier).verify(validIdToken);
-        verify(shopperRepository).findByEmail(email);
-        verify(jwtTokenService).generateAccessToken(mockShopper.getId(), deviceId);
-        verify(jwtTokenService).generateRefreshToken(mockShopper.getId());
-        verify(docRef).set(any(RefreshToken.class));
-
-        // Verify shopper was not saved (already existed)
-        verify(shopperRepository, never()).save(any());
+        verify(authService).loginWithGoogleAsync(authHeader, deviceId);
     }
 
     @Test
+    @DisplayName("Login with Google - New shopper success")
     void testLoginWithGoogle_NewShopper_Success() throws Exception {
-        // Setup mocks for this specific test
-        GoogleIdToken.Payload mockPayload = mock(GoogleIdToken.Payload.class);
-        when(mockPayload.getEmail()).thenReturn(email);
-        when(mockPayload.get("name")).thenReturn(name);
+        // Given
+        String authHeader = "Bearer " + validIdToken;
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.ok(Map.of(
+                        "accessToken", "access-token",
+                        "refreshToken", "refresh-token"
+                ))
+        );
+        when(authService.loginWithGoogleAsync(authHeader, deviceId)).thenReturn(expectedResponse);
 
-        Shopper mockShopper = new Shopper(email, name);
-        mockShopper.setId("shopper123");
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(authHeader, deviceId);
+        ResponseEntity<?> response = responseF.get();
 
-        when(googleTokenVerifier.verify(validIdToken)).thenReturn(mockPayload);
-        when(shopperRepository.findByEmail(email)).thenReturn(Optional.empty());
-
-        Shopper newShopper = new Shopper(email, name);
-        newShopper.setId("new-shopper-id");
-
-        when(shopperRepository.save(any(Shopper.class))).thenReturn(newShopper);
-        when(jwtTokenService.generateAccessToken(newShopper.getId(), deviceId)).thenReturn("access-token");
-        when(jwtTokenService.generateRefreshToken(newShopper.getId())).thenReturn("refresh-token");
-        when(jwtTokenService.getRefreshTokenExpiration()).thenReturn(7 * 24 * 60 * 60 * 1000L);
-
-        // Mock Firestore operations
-        CollectionReference collection = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<WriteResult> future = mock(ApiFuture.class);
-        WriteResult writeResult = mock(WriteResult.class);
-
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.document("refresh-token")).thenReturn(docRef);
-        when(docRef.set(any(RefreshToken.class))).thenReturn(future);
-        when(future.get()).thenReturn(writeResult);
-
-        ResponseEntity<?> response = authController.loginWithGoogle("Bearer " + validIdToken, deviceId);
-
+        // Then
         assertEquals(200, response.getStatusCode().value());
         @SuppressWarnings("unchecked")
         Map<String, String> body = (Map<String, String>) response.getBody();
         assertNotNull(body);
         assertEquals("access-token", body.get("accessToken"));
         assertEquals("refresh-token", body.get("refreshToken"));
-
-        // Verify new shopper was created
-        verify(shopperRepository).save(argThat(shopper ->
-                shopper.getEmail().equals(email) && shopper.getName().equals(name)));
-        verify(shopperRepository, never()).deleteById(any());
+        verify(authService).loginWithGoogleAsync(authHeader, deviceId);
     }
 
     @Test
-    void testLoginWithGoogle_NewShopper_ShopperSaveFails() throws Exception {
-        // Setup mocks for this specific test
-        GoogleIdToken.Payload mockPayload = mock(GoogleIdToken.Payload.class);
-        when(mockPayload.getEmail()).thenReturn(email);
-        when(mockPayload.get("name")).thenReturn(name);
+    @DisplayName("Login with Google - Shopper save fails")
+    void testLoginWithGoogle_ShopperSaveFails() throws Exception {
+        // Given
+        String authHeader = "Bearer " + validIdToken;
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Failed to create new shopper: Database save failed"))
+        );
+        when(authService.loginWithGoogleAsync(authHeader, deviceId)).thenReturn(expectedResponse);
 
-        Shopper mockShopper = new Shopper(email, name);
-        mockShopper.setId("shopper123");
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(authHeader, deviceId);
+        ResponseEntity<?> response = responseF.get();
 
-        when(googleTokenVerifier.verify(validIdToken)).thenReturn(mockPayload);
-        when(shopperRepository.findByEmail(email)).thenReturn(Optional.empty());
-        when(shopperRepository.save(any(Shopper.class)))
-                .thenThrow(new RuntimeException("Database save failed"));
-
-        ResponseEntity<?> response = authController.loginWithGoogle("Bearer " + validIdToken, deviceId);
-
+        // Then
         assertEquals(500, response.getStatusCode().value());
-        assertTrue(response.getBody().toString().startsWith("Failed to create new shopper:"));
-
-        // Verify no token generation attempted
-        verify(jwtTokenService, never()).generateAccessToken(any(), any());
-        verify(jwtTokenService, never()).generateRefreshToken(anyString());
+        @SuppressWarnings("unchecked")
+        Map<String, String> body = (Map<String, String>) response.getBody();
+        assertTrue(body.get("error").startsWith("Failed to create new shopper:"));
+        verify(authService).loginWithGoogleAsync(authHeader, deviceId);
     }
 
     @Test
-    void testLoginWithGoogle_NewShopper_FirestoreFails() throws Exception {
-        // --- Arrange: Data values for this test
-        String email = "foo@example.com";
-        String name = "Foo Bar";
-        String validIdToken = "valid-id-token";
-        String deviceId = "test-device-123";
+    @DisplayName("Login with Google - Firestore operation fails")
+    void testLoginWithGoogle_FirestoreFails() throws Exception {
+        // Given
+        String authHeader = "Bearer " + validIdToken;
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Failed to complete login: Firestore write failed"))
+        );
+        when(authService.loginWithGoogleAsync(authHeader, deviceId)).thenReturn(expectedResponse);
 
-        // Mock Google payload
-        GoogleIdToken.Payload mockPayload = mock(GoogleIdToken.Payload.class);
-        when(googleTokenVerifier.verify(validIdToken)).thenReturn(mockPayload);
-        when(mockPayload.getEmail()).thenReturn(email);
-        when(mockPayload.get("name")).thenReturn(name);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(authHeader, deviceId);
+        ResponseEntity<?> response = responseF.get();
 
-        // Shopper repository returns no shopper (this is a new registration)
-        when(shopperRepository.findByEmail(email)).thenReturn(Optional.empty());
-
-        // Save returns the newly created shopper
-        Shopper newShopper = new Shopper(email, name);
-        newShopper.setId("new-shopper-id");
-        when(shopperRepository.save(any(Shopper.class))).thenReturn(newShopper);
-
-        // JWT token service returns fake tokens & expiration
-        when(jwtTokenService.generateAccessToken(newShopper.getId(), deviceId)).thenReturn("access-token");
-        when(jwtTokenService.generateRefreshToken(newShopper.getId())).thenReturn("refresh-token");
-        when(jwtTokenService.getRefreshTokenExpiration()).thenReturn(7 * 24 * 60 * 60 * 1000L);
-
-        // Mock Firestore write to fail
-        CollectionReference collection = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<WriteResult> future = mock(ApiFuture.class);
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.document("refresh-token")).thenReturn(docRef);
-        when(docRef.set(any(RefreshToken.class))).thenReturn(future);
-        when(future.get()).thenThrow(new RuntimeException("Firestore write failed"));
-
-        // --- Act
-        ResponseEntity<?> response = authController.loginWithGoogle(
-                "Bearer " + validIdToken, deviceId);
-
-        // --- Assert
+        // Then
         assertEquals(500, response.getStatusCode().value());
-        String body = String.valueOf(response.getBody());
-        assertTrue(body.startsWith("Failed to complete login:"), "Body: " + body);
-        // Ensure the cleanup happened!
-        verify(shopperRepository).deleteById(newShopper.getId());
+        @SuppressWarnings("unchecked")
+        Map<String, String> body = (Map<String, String>) response.getBody();
+        assertTrue(body.get("error").startsWith("Failed to complete login:"));
+        verify(authService).loginWithGoogleAsync(authHeader, deviceId);
     }
 
     @Test
-    void testLoginWithGoogle_ExistingShopper_FirestoreFails() throws Exception {
-
-        // Setup mock payload inside this test
-        mockPayload = mock(GoogleIdToken.Payload.class);
-        when(mockPayload.getEmail()).thenReturn(email);
-        when(mockPayload.get("name")).thenReturn(name);
-
-        when(googleTokenVerifier.verify(validIdToken)).thenReturn(mockPayload);
-        when(shopperRepository.findByEmail(email)).thenReturn(Optional.empty());
-
-        Shopper shopper = new Shopper(email, name);
-        shopper.setId("shopper123");
-
-        when(googleTokenVerifier.verify(validIdToken)).thenReturn(mockPayload);
-        when(shopperRepository.findByEmail(email)).thenReturn(Optional.of(shopper));
-        when(jwtTokenService.generateAccessToken(shopper.getId(), deviceId)).thenReturn("access-token");
-        when(jwtTokenService.generateRefreshToken(shopper.getId())).thenReturn("refresh-token");
-        when(jwtTokenService.getRefreshTokenExpiration()).thenReturn(7 * 24 * 60 * 60 * 1000L);
-
-        // Mock Firestore operations to fail
-        CollectionReference collection = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<WriteResult> future = mock(ApiFuture.class);
-
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.document("refresh-token")).thenReturn(docRef);
-        when(docRef.set(any(RefreshToken.class))).thenReturn(future);
-        when(future.get()).thenThrow(new RuntimeException("Firestore write failed"));
-
-        ResponseEntity<?> response = authController.loginWithGoogle("Bearer " + validIdToken, deviceId);
-
-        assertEquals(500, response.getStatusCode().value());
-        assertTrue(response.getBody().toString().startsWith("Failed to complete login:"));
-
-        // Verify no cleanup for existing shopper
-        verify(shopperRepository, never()).deleteById(any());
-    }
-
-    @Test
+    @DisplayName("Refresh token - Success")
     void testRefreshToken_Success() throws Exception {
-        String refreshToken = "refresh-token";
-        String shopperId = "shopper-123";
-        String newAccessToken = "new-access-token";
-        String newRefreshToken = "new-refresh-token";
-
+        // Given
         Map<String, String> requestBody = Map.of(
-                "refreshToken", refreshToken,
+                "refreshToken", "refresh-token",
                 "deviceId", deviceId
         );
-
-        // Mock existing refresh token
-        RefreshToken storedToken = new RefreshToken(
-                refreshToken,
-                shopperId,
-                deviceId,
-                System.currentTimeMillis() + 1000000 // Future expiry
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.ok(Map.of(
+                        "accessToken", "new-access-token",
+                        "refreshToken", "new-refresh-token"
+                ))
         );
+        when(authService.refreshTokenAsync(requestBody)).thenReturn(expectedResponse);
 
-        CollectionReference collection = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<DocumentSnapshot> getFuture = mock(ApiFuture.class);
-        DocumentSnapshot docSnapshot = mock(DocumentSnapshot.class);
-        ApiFuture<WriteResult> deleteFuture = mock(ApiFuture.class);
-        ApiFuture<WriteResult> setFuture = mock(ApiFuture.class);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.refreshToken(requestBody);
+        ResponseEntity<?> response = responseF.get();
 
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.document(refreshToken)).thenReturn(docRef);
-        when(docRef.get()).thenReturn(getFuture);
-        when(getFuture.get()).thenReturn(docSnapshot);
-        when(docSnapshot.exists()).thenReturn(true);
-        when(docSnapshot.toObject(RefreshToken.class)).thenReturn(storedToken);
-        when(docRef.delete()).thenReturn(deleteFuture);
-        when(deleteFuture.get()).thenReturn(null);
-
-        when(jwtTokenService.generateAccessToken(shopperId, deviceId)).thenReturn(newAccessToken);
-        when(jwtTokenService.generateRefreshToken(shopperId)).thenReturn(newRefreshToken);
-        when(jwtTokenService.getRefreshTokenExpiration()).thenReturn(7 * 24 * 60 * 60 * 1000L);
-
-        DocumentReference newDocRef = mock(DocumentReference.class);
-        when(collection.document(newRefreshToken)).thenReturn(newDocRef);
-        when(newDocRef.set(any(RefreshToken.class))).thenReturn(setFuture);
-        when(setFuture.get()).thenReturn(null);
-
-        ResponseEntity<?> response = authController.refreshToken(requestBody);
-
+        // Then
         assertEquals(200, response.getStatusCode().value());
         @SuppressWarnings("unchecked")
         Map<String, String> body = (Map<String, String>) response.getBody();
         assertNotNull(body);
-        assertEquals(newAccessToken, body.get("accessToken"));
-        assertEquals(newRefreshToken, body.get("refreshToken"));
-
-        verify(docRef).delete();
-        verify(newDocRef).set(any(RefreshToken.class));
+        assertEquals("new-access-token", body.get("accessToken"));
+        assertEquals("new-refresh-token", body.get("refreshToken"));
+        verify(authService).refreshTokenAsync(requestBody);
     }
 
     @Test
+    @DisplayName("Refresh token - Missing parameters")
     void testRefreshToken_MissingParameters() throws Exception {
+        // Given
         Map<String, String> requestBody = Map.of("refreshToken", "token");
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body(Map.of("error", "Missing refreshToken or deviceId"))
+        );
+        when(authService.refreshTokenAsync(requestBody)).thenReturn(expectedResponse);
 
-        ResponseEntity<?> response = authController.refreshToken(requestBody);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.refreshToken(requestBody);
+        ResponseEntity<?> response = responseF.get();
 
+        // Then
         assertEquals(400, response.getStatusCode().value());
-        assertEquals("Missing refreshToken or deviceId", response.getBody());
+        assertEquals(Map.of("error", "Missing refreshToken or deviceId"), response.getBody());
+        verify(authService).refreshTokenAsync(requestBody);
     }
 
     @Test
+    @DisplayName("Refresh token - Token not found")
     void testRefreshToken_TokenNotFound() throws Exception {
+        // Given
         Map<String, String> requestBody = Map.of(
                 "refreshToken", "invalid-token",
                 "deviceId", deviceId
         );
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid refresh token"))
+        );
+        when(authService.refreshTokenAsync(requestBody)).thenReturn(expectedResponse);
 
-        CollectionReference collection = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<DocumentSnapshot> getFuture = mock(ApiFuture.class);
-        DocumentSnapshot docSnapshot = mock(DocumentSnapshot.class);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.refreshToken(requestBody);
+        ResponseEntity<?> response = responseF.get();
 
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.document("invalid-token")).thenReturn(docRef);
-        when(docRef.get()).thenReturn(getFuture);
-        when(getFuture.get()).thenReturn(docSnapshot);
-        when(docSnapshot.exists()).thenReturn(false);
-
-        ResponseEntity<?> response = authController.refreshToken(requestBody);
-
+        // Then
         assertEquals(401, response.getStatusCode().value());
-        assertEquals("Invalid refresh token", response.getBody());
+        assertEquals(Map.of("error", "Invalid refresh token"), response.getBody());
+        verify(authService).refreshTokenAsync(requestBody);
     }
 
     @Test
+    @DisplayName("Refresh token - Expired token")
     void testRefreshToken_ExpiredToken() throws Exception {
-        String refreshToken = "expired-token";
+        // Given
         Map<String, String> requestBody = Map.of(
-                "refreshToken", refreshToken,
+                "refreshToken", "expired-token",
                 "deviceId", deviceId
         );
-
-        RefreshToken expiredToken = new RefreshToken(
-                refreshToken,
-                "shopper-123",
-                deviceId,
-                System.currentTimeMillis() - 1000 // Past expiry
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Refresh token expired or device mismatch"))
         );
+        when(authService.refreshTokenAsync(requestBody)).thenReturn(expectedResponse);
 
-        CollectionReference collection = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<DocumentSnapshot> getFuture = mock(ApiFuture.class);
-        DocumentSnapshot docSnapshot = mock(DocumentSnapshot.class);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.refreshToken(requestBody);
+        ResponseEntity<?> response = responseF.get();
 
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.document(refreshToken)).thenReturn(docRef);
-        when(docRef.get()).thenReturn(getFuture);
-        when(getFuture.get()).thenReturn(docSnapshot);
-        when(docSnapshot.exists()).thenReturn(true);
-        when(docSnapshot.toObject(RefreshToken.class)).thenReturn(expiredToken);
-
-        ResponseEntity<?> response = authController.refreshToken(requestBody);
-
+        // Then
         assertEquals(401, response.getStatusCode().value());
-        assertEquals("Refresh token expired or device mismatch", response.getBody());
+        assertEquals(Map.of("error", "Refresh token expired or device mismatch"), response.getBody());
+        verify(authService).refreshTokenAsync(requestBody);
     }
 
     @Test
+    @DisplayName("Logout - Success")
     void testLogout_Success() throws Exception {
-        String refreshToken = "refresh-token";
+        // Given
         Map<String, String> requestBody = Map.of(
-                "refreshToken", refreshToken,
+                "refreshToken", "refresh-token",
                 "deviceId", deviceId
         );
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.ok(Map.of("message", "Logged out from device"))
+        );
+        when(authService.logoutAsync(requestBody)).thenReturn(expectedResponse);
 
-        RefreshToken storedToken = new RefreshToken(refreshToken, "shopper-123", deviceId, System.currentTimeMillis() + 1000000);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.logout(requestBody);
+        ResponseEntity<?> response = responseF.get();
 
-        CollectionReference collection = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<DocumentSnapshot> getFuture = mock(ApiFuture.class);
-        DocumentSnapshot docSnapshot = mock(DocumentSnapshot.class);
-        ApiFuture<WriteResult> deleteFuture = mock(ApiFuture.class);
-
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.document(refreshToken)).thenReturn(docRef);
-        when(docRef.get()).thenReturn(getFuture);
-        when(getFuture.get()).thenReturn(docSnapshot);
-        when(docSnapshot.exists()).thenReturn(true);
-        when(docSnapshot.toObject(RefreshToken.class)).thenReturn(storedToken);
-        when(docRef.delete()).thenReturn(deleteFuture);
-        when(deleteFuture.get()).thenReturn(null);
-
-        ResponseEntity<?> response = authController.logout(requestBody);
-
+        // Then
         assertEquals(200, response.getStatusCode().value());
         @SuppressWarnings("unchecked")
         Map<String, String> body = (Map<String, String>) response.getBody();
         assertEquals("Logged out from device", body.get("message"));
-
-        verify(docRef).delete();
+        verify(authService).logoutAsync(requestBody);
     }
 
     @Test
+    @DisplayName("Logout - Invalid request")
     void testLogout_InvalidRequest() throws Exception {
+        // Given
         Map<String, String> requestBody = Map.of(
                 "refreshToken", "token",
                 "deviceId", "wrong-device"
         );
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid logout request"))
+        );
+        when(authService.logoutAsync(requestBody)).thenReturn(expectedResponse);
 
-        RefreshToken storedToken = new RefreshToken("token", "shopper-123", deviceId, System.currentTimeMillis() + 1000000);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.logout(requestBody);
+        ResponseEntity<?> response = responseF.get();
 
-        CollectionReference collection = mock(CollectionReference.class);
-        DocumentReference docRef = mock(DocumentReference.class);
-        ApiFuture<DocumentSnapshot> getFuture = mock(ApiFuture.class);
-        DocumentSnapshot docSnapshot = mock(DocumentSnapshot.class);
-
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.document("token")).thenReturn(docRef);
-        when(docRef.get()).thenReturn(getFuture);
-        when(getFuture.get()).thenReturn(docSnapshot);
-        when(docSnapshot.exists()).thenReturn(true);
-        when(docSnapshot.toObject(RefreshToken.class)).thenReturn(storedToken);
-
-        ResponseEntity<?> response = authController.logout(requestBody);
-
+        // Then
         assertEquals(401, response.getStatusCode().value());
-        assertEquals("Invalid logout request", response.getBody());
-
-        verify(docRef, never()).delete();
+        assertEquals(Map.of("error", "Invalid logout request"), response.getBody());
+        verify(authService).logoutAsync(requestBody);
     }
 
     @Test
+    @DisplayName("Logout all devices - Success")
     void testLogoutAllDevices_Success() throws Exception {
-        String shopperId = "shopper-123";
-        Map<String, String> requestBody = Map.of("shopperId", shopperId);
+        // Given
+        Map<String, String> requestBody = Map.of("shopperId", "shopper-123");
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.ok(Map.of("message", "Logged out from all devices"))
+        );
+        when(authService.logoutAllDevicesAsync(requestBody)).thenReturn(expectedResponse);
 
-        CollectionReference collection = mock(CollectionReference.class);
-        Query query = mock(Query.class);
-        ApiFuture<QuerySnapshot> queryFuture = mock(ApiFuture.class);
-        QuerySnapshot querySnapshot = mock(QuerySnapshot.class);
-        QueryDocumentSnapshot doc1 = mock(QueryDocumentSnapshot.class);
-        QueryDocumentSnapshot doc2 = mock(QueryDocumentSnapshot.class);
-        DocumentReference docRef1 = mock(DocumentReference.class);
-        DocumentReference docRef2 = mock(DocumentReference.class);
-        ApiFuture<WriteResult> deleteFuture1 = mock(ApiFuture.class);
-        ApiFuture<WriteResult> deleteFuture2 = mock(ApiFuture.class);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.logoutAllDevices(requestBody);
+        ResponseEntity<?> response = responseF.get();
 
-        when(firestore.collection("refresh_tokens")).thenReturn(collection);
-        when(collection.whereEqualTo("shopperId", shopperId)).thenReturn(query);
-        when(query.get()).thenReturn(queryFuture);
-        when(queryFuture.get()).thenReturn(querySnapshot);
-        when(querySnapshot.getDocuments()).thenReturn(Arrays.asList(doc1, doc2));
-        when(doc1.getReference()).thenReturn(docRef1);
-        when(doc2.getReference()).thenReturn(docRef2);
-        when(docRef1.delete()).thenReturn(deleteFuture1);
-        when(docRef2.delete()).thenReturn(deleteFuture2);
-        when(deleteFuture1.get()).thenReturn(null);
-        when(deleteFuture2.get()).thenReturn(null);
-
-        ResponseEntity<?> response = authController.logoutAllDevices(requestBody);
-
+        // Then
         assertEquals(200, response.getStatusCode().value());
         @SuppressWarnings("unchecked")
         Map<String, String> body = (Map<String, String>) response.getBody();
         assertEquals("Logged out from all devices", body.get("message"));
-
-        verify(docRef1).delete();
-        verify(docRef2).delete();
+        verify(authService).logoutAllDevicesAsync(requestBody);
     }
 
     @Test
+    @DisplayName("Logout all devices - Missing shopper ID")
     void testLogoutAllDevices_MissingShopperId() throws Exception {
+        // Given
         Map<String, String> requestBody = Map.of();
+        CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body(Map.of("error", "Missing shopperId"))
+        );
+        when(authService.logoutAllDevicesAsync(requestBody)).thenReturn(expectedResponse);
 
-        ResponseEntity<?> response = authController.logoutAllDevices(requestBody);
+        // When
+        CompletableFuture<ResponseEntity<?>> responseF = authController.logoutAllDevices(requestBody);
+        ResponseEntity<?> response = responseF.get();
 
+        // Then
         assertEquals(400, response.getStatusCode().value());
-        assertEquals("Missing shopperId", response.getBody());
+        assertEquals(Map.of("error", "Missing shopperId"), response.getBody());
+        verify(authService).logoutAllDevicesAsync(requestBody);
+    }
+
+    @Nested
+    @DisplayName("Edge Cases")
+    class EdgeCases {
+
+        @Test
+        @DisplayName("Service throws unexpected exception")
+        void testServiceThrowsException() {
+            // Given
+            String authHeader = "Bearer " + validIdToken;
+            when(authService.loginWithGoogleAsync(authHeader, deviceId))
+                    .thenThrow(new RuntimeException("Unexpected service error"));
+
+            // When & Then
+            assertThrows(RuntimeException.class, () -> {
+                authController.loginWithGoogle(authHeader, deviceId);
+            });
+            verify(authService).loginWithGoogleAsync(authHeader, deviceId);
+        }
+
+        @Test
+        @DisplayName("Service returns null CompletableFuture")
+        void testServiceReturnsNull() throws Exception {
+            // Given
+            String authHeader = "Bearer " + validIdToken;
+            when(authService.loginWithGoogleAsync(authHeader, deviceId)).thenReturn(null);
+
+            // When
+            CompletableFuture<ResponseEntity<?>> result = authController.loginWithGoogle(authHeader, deviceId);
+
+            // Then
+            assertNull(result);
+            verify(authService).loginWithGoogleAsync(authHeader, deviceId);
+        }
+    }
+
+    @Nested
+    @DisplayName("Parameter Validation")
+    class ParameterValidation {
+
+        @ParameterizedTest
+        @DisplayName("Various invalid auth headers")
+        @ValueSource(strings = {"", "Bearer", "Basic token", "Bearer "})
+        void testInvalidAuthHeaders(String invalidAuthHeader) throws Exception {
+            // Given
+            CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body(Map.of("error", "Missing or invalid Authorization header"))
+            );
+            when(authService.loginWithGoogleAsync(invalidAuthHeader, deviceId)).thenReturn(expectedResponse);
+
+            // When
+            CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(invalidAuthHeader, deviceId);
+            ResponseEntity<?> response = responseF.get();
+
+            // Then
+            assertEquals(400, response.getStatusCode().value());
+            verify(authService).loginWithGoogleAsync(invalidAuthHeader, deviceId);
+        }
+
+        @ParameterizedTest
+        @DisplayName("Various invalid device IDs")
+        @ValueSource(strings = {"", "   "})
+        @NullSource
+        void testInvalidDeviceIds(String invalidDeviceId) throws Exception {
+            // Given
+            String authHeader = "Bearer " + validIdToken;
+            CompletableFuture<ResponseEntity<?>> expectedResponse = CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body(Map.of("error", "Missing X-Device-Id header"))
+            );
+            when(authService.loginWithGoogleAsync(authHeader, invalidDeviceId)).thenReturn(expectedResponse);
+
+            // When
+            CompletableFuture<ResponseEntity<?>> responseF = authController.loginWithGoogle(authHeader, invalidDeviceId);
+            ResponseEntity<?> response = responseF.get();
+
+            // Then
+            assertEquals(400, response.getStatusCode().value());
+            verify(authService).loginWithGoogleAsync(authHeader, invalidDeviceId);
+        }
     }
 }

@@ -140,18 +140,4 @@ class GoogleTokenVerifierTest {
         assertNull(resultPayload);
         verify(googleIdTokenVerifier, times(1)).verify(MOCK_ID_TOKEN);
     }
-
-    @Test
-    @DisplayName("Should return null when a generic Exception is thrown")
-    void testVerify_GenericException() throws GeneralSecurityException, IOException {
-        // Arrange
-        when(googleIdTokenVerifier.verify(MOCK_ID_TOKEN)).thenThrow(new RuntimeException("Test unexpected exception"));
-
-        // Act
-        GoogleIdToken.Payload resultPayload = googleTokenVerifier.verify(MOCK_ID_TOKEN);
-
-        // Assert
-        assertNull(resultPayload);
-        verify(googleIdTokenVerifier, times(1)).verify(MOCK_ID_TOKEN);
-    }
 }

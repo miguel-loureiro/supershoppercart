@@ -1,20 +1,29 @@
 package com.supershoppercart.services;
 
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.*;
+import com.supershoppercart.models.RefreshToken;
 import com.supershoppercart.models.Shopper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.*;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBeans;
 import org.springframework.test.util.ReflectionTestUtils;
-
 import javax.crypto.SecretKey;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -30,9 +39,10 @@ class JwtTokenServiceTest {
     @Autowired
     private JwtTokenService jwtTokenService;
 
-    private Shopper testShopper;
+    @MockitoBean
+    private Firestore firestore;
 
-    private final String secretKeyString = "aStrongAndSecretKeyForTestingPurposesThatIsAtLeast32BytesLong";
+    private Shopper testShopper;
 
     @BeforeEach
     void setUp() {
@@ -41,6 +51,7 @@ class JwtTokenServiceTest {
         testShopper.setId("test-shopper-123");
         testShopper.setName("Test Shopper");
 
+        String secretKeyString = "aStrongAndSecretKeyForTestingPurposesThatIsAtLeast32BytesLong";
         ReflectionTestUtils.setField(jwtTokenService, "secretKeyString", secretKeyString);
         ReflectionTestUtils.setField(jwtTokenService, "accessTokenExpiration", TimeUnit.MINUTES.toMillis(60));
         ReflectionTestUtils.setField(jwtTokenService, "refreshTokenExpiration", TimeUnit.DAYS.toMillis(30));
@@ -65,7 +76,7 @@ class JwtTokenServiceTest {
     @DisplayName("Should throw exception when secret key is null")
     void testInitializeSecretKeyThrowsExceptionForNullSecret() {
         // Given
-        JwtTokenService newService = new JwtTokenService();
+        JwtTokenService newService = new JwtTokenService(firestore);
         ReflectionTestUtils.setField(newService, "secretKeyString", null);
         ReflectionTestUtils.setField(newService, "accessTokenExpiration", 3600000L);
         ReflectionTestUtils.setField(newService, "refreshTokenExpiration", 2592000000L);
@@ -82,7 +93,7 @@ class JwtTokenServiceTest {
     @DisplayName("Should throw exception when secret key is empty")
     void testInitializeSecretKeyThrowsExceptionForEmptySecret() {
         // Given
-        JwtTokenService newService = new JwtTokenService();
+        JwtTokenService newService = new JwtTokenService(firestore);
         ReflectionTestUtils.setField(newService, "secretKeyString", "    ");
         ReflectionTestUtils.setField(newService, "accessTokenExpiration", 3600000L);
         ReflectionTestUtils.setField(newService, "refreshTokenExpiration", 2592000000L);
@@ -286,7 +297,7 @@ class JwtTokenServiceTest {
     @DisplayName("Should correctly identify expired token")
     void testIsTokenExpiredReturnsTrueForExpiredToken() throws InterruptedException {
         // Given - create a service with very short expiration
-        JwtTokenService shortExpiryService = new JwtTokenService();
+        JwtTokenService shortExpiryService = new JwtTokenService(firestore);
         ReflectionTestUtils.setField(shortExpiryService, "secretKeyString", "test-secret-key-that-is-long-enough-for-hmac-sha256-algorithm");
         ReflectionTestUtils.setField(shortExpiryService, "accessTokenExpiration", 1L); // 1ms
         ReflectionTestUtils.setField(shortExpiryService, "refreshTokenExpiration", 2592000000L);
@@ -536,7 +547,7 @@ class JwtTokenServiceTest {
     @DisplayName("Should handle short secret key by padding")
     void testShortSecretKeyPadding() {
         // Given
-        JwtTokenService newService = new JwtTokenService();
+        JwtTokenService newService = new JwtTokenService(firestore);
         ReflectionTestUtils.setField(newService, "secretKeyString", "short"); // Only 5 characters
         ReflectionTestUtils.setField(newService, "accessTokenExpiration", 3600000L);
         ReflectionTestUtils.setField(newService, "refreshTokenExpiration", 2592000000L);
@@ -554,7 +565,7 @@ class JwtTokenServiceTest {
     @DisplayName("Should handle RuntimeException during token generation")
     void testTokenGenerationRuntimeException() {
         // Given - create a service with invalid configuration to force an exception
-        JwtTokenService faultyService = new JwtTokenService();
+        JwtTokenService faultyService = new JwtTokenService(firestore);
         ReflectionTestUtils.setField(faultyService, "secretKeyString", "valid-secret-key-that-is-long-enough-for-hmac-sha256-algorithm");
         ReflectionTestUtils.setField(faultyService, "accessTokenExpiration", 3600000L);
         ReflectionTestUtils.setField(faultyService, "refreshTokenExpiration", 2592000000L);
@@ -628,7 +639,7 @@ class JwtTokenServiceTest {
     @Test
     @DisplayName("Should return null from extractAllClaims on unexpected exception")
     void testExtractAllClaimsUnexpectedException() {
-        JwtTokenService newService = new JwtTokenService();
+        JwtTokenService newService = new JwtTokenService(firestore);
         ReflectionTestUtils.setField(newService, "secretKeyString", "test-secret-key-that-is-long-enough-for-hmac-sha256");
         ReflectionTestUtils.setField(newService, "accessTokenExpiration", 3600000L);
         ReflectionTestUtils.setField(newService, "refreshTokenExpiration", 2592000000L);
@@ -823,5 +834,455 @@ class JwtTokenServiceTest {
         // Then
         assertNull(issuedDate);
         verify(spiedService, times(1)).extractAllClaims(anyString());
+    }
+
+    @Test
+    @DisplayName("Should successfully refresh token with valid parameters")
+    void testRefreshTokenAsyncSuccess() throws Exception {
+        // Given
+        String refreshToken = "valid-refresh-token";
+        String deviceId = "device-123";
+        String shopperId = "shopper-456";
+
+        Map<String, String> body = Map.of(
+                "refreshToken", refreshToken,
+                "deviceId", deviceId
+        );
+
+        RefreshToken storedToken = new RefreshToken(refreshToken, shopperId, deviceId,
+                System.currentTimeMillis() + 1000000);
+
+        DocumentSnapshot mockDoc = mock(DocumentSnapshot.class);
+        DocumentReference mockRef = mock(DocumentReference.class);
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        ApiFuture<DocumentSnapshot> mockGetFuture = mock(ApiFuture.class);
+        ApiFuture<WriteResult> mockDeleteFuture = mock(ApiFuture.class);
+        ApiFuture<WriteResult> mockSetFuture = mock(ApiFuture.class);
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.document(refreshToken)).thenReturn(mockRef);
+        when(mockRef.get()).thenReturn(mockGetFuture);
+        when(mockGetFuture.get()).thenReturn(mockDoc);
+        when(mockDoc.exists()).thenReturn(true);
+        when(mockDoc.toObject(RefreshToken.class)).thenReturn(storedToken);
+        when(mockRef.delete()).thenReturn(mockDeleteFuture);
+        when(mockDeleteFuture.get()).thenReturn(null);
+        when(mockCollection.document(anyString())).thenReturn(mockRef);
+        when(mockRef.set(any(RefreshToken.class))).thenReturn(mockSetFuture);
+        when(mockSetFuture.get()).thenReturn(null);
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.refreshTokenAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertInstanceOf(Map.class, response.getBody());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertTrue(responseBody.containsKey("accessToken"));
+        assertTrue(responseBody.containsKey("refreshToken"));
+    }
+    @Test
+    @DisplayName("Should return bad request when refreshToken is missing")
+    void testRefreshTokenAsyncMissingRefreshToken() throws Exception {
+        // Given
+        Map<String, String> body = Map.of("deviceId", "device-123");
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.refreshTokenAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Missing refreshToken or deviceId", responseBody.get("error"));
+    }
+    @Test
+    @DisplayName("Should return bad request when deviceId is missing")
+    void testRefreshTokenAsyncMissingDeviceId() throws Exception {
+        // Given
+        Map<String, String> body = Map.of("refreshToken", "token-123");
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.refreshTokenAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Missing refreshToken or deviceId", responseBody.get("error"));
+    }
+    @Test
+    @DisplayName("Should return unauthorized when refresh token does not exist")
+    void testRefreshTokenAsyncInvalidToken() throws Exception {
+        // Given
+        Map<String, String> body = Map.of(
+                "refreshToken", "invalid-token",
+                "deviceId", "device-123"
+        );
+
+        DocumentSnapshot mockDoc = mock(DocumentSnapshot.class);
+        DocumentReference mockRef = mock(DocumentReference.class);
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        ApiFuture<DocumentSnapshot> mockGetFuture = mock(ApiFuture.class);
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.document("invalid-token")).thenReturn(mockRef);
+        when(mockRef.get()).thenReturn(mockGetFuture);
+        when(mockGetFuture.get()).thenReturn(mockDoc);
+        when(mockDoc.exists()).thenReturn(false);
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.refreshTokenAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Invalid refresh token", responseBody.get("error"));
+    }
+    @Test
+    @DisplayName("Should return unauthorized when device ID does not match")
+    void testRefreshTokenAsyncDeviceMismatch() throws Exception {
+        // Given
+        String refreshToken = "valid-refresh-token";
+        String deviceId = "device-123";
+        String wrongDeviceId = "wrong-device";
+        String shopperId = "shopper-456";
+
+        Map<String, String> body = Map.of(
+                "refreshToken", refreshToken,
+                "deviceId", wrongDeviceId
+        );
+
+        RefreshToken storedToken = new RefreshToken(refreshToken, shopperId, deviceId,
+                System.currentTimeMillis() + 1000000);
+
+        DocumentSnapshot mockDoc = mock(DocumentSnapshot.class);
+        DocumentReference mockRef = mock(DocumentReference.class);
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        ApiFuture<DocumentSnapshot> mockGetFuture = mock(ApiFuture.class);
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.document(refreshToken)).thenReturn(mockRef);
+        when(mockRef.get()).thenReturn(mockGetFuture);
+        when(mockGetFuture.get()).thenReturn(mockDoc);
+        when(mockDoc.exists()).thenReturn(true);
+        when(mockDoc.toObject(RefreshToken.class)).thenReturn(storedToken);
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.refreshTokenAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Refresh token expired or device mismatch", responseBody.get("error"));
+    }
+    @Test
+    @DisplayName("Should return unauthorized when refresh token is expired")
+    void testRefreshTokenAsyncExpiredToken() throws Exception {
+        // Given
+        String refreshToken = "expired-refresh-token";
+        String deviceId = "device-123";
+        String shopperId = "shopper-456";
+
+        Map<String, String> body = Map.of(
+                "refreshToken", refreshToken,
+                "deviceId", deviceId
+        );
+
+        RefreshToken expiredToken = new RefreshToken(refreshToken, shopperId, deviceId,
+                System.currentTimeMillis() - 1000); // Expired
+
+        DocumentSnapshot mockDoc = mock(DocumentSnapshot.class);
+        DocumentReference mockRef = mock(DocumentReference.class);
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        ApiFuture<DocumentSnapshot> mockGetFuture = mock(ApiFuture.class);
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.document(refreshToken)).thenReturn(mockRef);
+        when(mockRef.get()).thenReturn(mockGetFuture);
+        when(mockGetFuture.get()).thenReturn(mockDoc);
+        when(mockDoc.exists()).thenReturn(true);
+        when(mockDoc.toObject(RefreshToken.class)).thenReturn(expiredToken);
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.refreshTokenAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Refresh token expired or device mismatch", responseBody.get("error"));
+    }
+    @Test
+    @DisplayName("Should successfully logout with valid parameters")
+    void testLogoutAsyncSuccess() throws Exception {
+        // Given
+        String refreshToken = "valid-refresh-token";
+        String deviceId = "device-123";
+        String shopperId = "shopper-456";
+
+        Map<String, String> body = Map.of(
+                "refreshToken", refreshToken,
+                "deviceId", deviceId
+        );
+
+        RefreshToken storedToken = new RefreshToken(refreshToken, shopperId, deviceId,
+                System.currentTimeMillis() + 1000000);
+
+        DocumentSnapshot mockDoc = mock(DocumentSnapshot.class);
+        DocumentReference mockRef = mock(DocumentReference.class);
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        ApiFuture<DocumentSnapshot> mockGetFuture = mock(ApiFuture.class);
+        ApiFuture<WriteResult> mockDeleteFuture = mock(ApiFuture.class);
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.document(refreshToken)).thenReturn(mockRef);
+        when(mockRef.get()).thenReturn(mockGetFuture);
+        when(mockGetFuture.get()).thenReturn(mockDoc);
+        when(mockDoc.exists()).thenReturn(true);
+        when(mockDoc.toObject(RefreshToken.class)).thenReturn(storedToken);
+        when(mockRef.delete()).thenReturn(mockDeleteFuture);
+        when(mockDeleteFuture.get()).thenReturn(null);
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Logged out from device", responseBody.get("message"));
+    }
+    @Test
+    @DisplayName("Should return bad request when logout refreshToken is missing")
+    void testLogoutAsyncMissingRefreshToken() throws Exception {
+        // Given
+        Map<String, String> body = Map.of("deviceId", "device-123");
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Missing refreshToken or deviceId", responseBody.get("error"));
+    }
+    @Test
+    @DisplayName("Should return bad request when logout deviceId is missing")
+    void testLogoutAsyncMissingDeviceId() throws Exception {
+        // Given
+        Map<String, String> body = Map.of("refreshToken", "token-123");
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Missing refreshToken or deviceId", responseBody.get("error"));
+    }
+
+    @Test
+    @DisplayName("Should return UNAUTHORIZED when logout token does not exist")
+    void testLogoutAsyncNonExistentToken() throws Exception {
+        // Given
+        Map<String, String> body = Map.of(
+                "refreshToken", "non-existent-token",
+                "deviceId", "device-123"
+        );
+        DocumentSnapshot mockDoc = mock(DocumentSnapshot.class);
+        DocumentReference mockRef = mock(DocumentReference.class);
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        ApiFuture<DocumentSnapshot> mockGetFuture = mock(ApiFuture.class);
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.document("non-existent-token")).thenReturn(mockRef);
+        when(mockRef.get()).thenReturn(mockGetFuture);
+        when(mockGetFuture.get()).thenReturn(mockDoc);
+        when(mockDoc.exists()).thenReturn(false);
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAsync(body);
+        ResponseEntity<?> response = result.get();
+        // Then
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Invalid logout request", responseBody.get("error"));
+    }
+
+    @Test
+    @DisplayName("Should successfully logout from all devices")
+    void testLogoutAllDevicesAsyncSuccess() throws Exception {
+        // Given
+        String shopperId = "shopper-456";
+        Map<String, String> body = Map.of("shopperId", shopperId);
+
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        Query mockQuery = mock(Query.class);
+        ApiFuture<QuerySnapshot> mockQueryFuture = mock(ApiFuture.class);
+        QuerySnapshot mockQuerySnapshot = mock(QuerySnapshot.class);
+        QueryDocumentSnapshot mockDoc1 = mock(QueryDocumentSnapshot.class);
+        QueryDocumentSnapshot mockDoc2 = mock(QueryDocumentSnapshot.class);
+        DocumentReference mockRef1 = mock(DocumentReference.class);
+        DocumentReference mockRef2 = mock(DocumentReference.class);
+        ApiFuture<WriteResult> mockDeleteFuture = mock(ApiFuture.class);
+
+        List<QueryDocumentSnapshot> docs = List.of(mockDoc1, mockDoc2);
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.whereEqualTo("shopperId", shopperId)).thenReturn(mockQuery);
+        when(mockQuery.get()).thenReturn(mockQueryFuture);
+        when(mockQueryFuture.get()).thenReturn(mockQuerySnapshot);
+        when(mockQuerySnapshot.getDocuments()).thenReturn(docs);
+        when(mockDoc1.getReference()).thenReturn(mockRef1);
+        when(mockDoc2.getReference()).thenReturn(mockRef2);
+        when(mockRef1.delete()).thenReturn(mockDeleteFuture);
+        when(mockRef2.delete()).thenReturn(mockDeleteFuture);
+        when(mockDeleteFuture.get()).thenReturn(null);
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAllDevicesAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Logged out from all devices", responseBody.get("message"));
+
+        verify(mockRef1).delete();
+        verify(mockRef2).delete();
+    }
+
+    @Test
+    @DisplayName("Should return bad request when logoutAllDevices shopperId is missing")
+    void testLogoutAllDevicesAsyncMissingShopperId() throws Exception {
+        // Given
+        Map<String, String> body = Map.of();
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAllDevicesAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Missing shopperId", responseBody.get("error"));
+    }
+
+    @Test
+    @DisplayName("Should return bad request when logoutAllDevices shopperId is blank")
+    void testLogoutAllDevicesAsyncBlankShopperId() throws Exception {
+        // Given
+        Map<String, String> body = Map.of("shopperId", "   ");
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAllDevicesAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Missing shopperId", responseBody.get("error"));
+    }
+
+    @Test
+    @DisplayName("Should successfully logout from all devices when no devices found")
+    void testLogoutAllDevicesAsyncNoDevicesFound() throws Exception {
+        // Given
+        String shopperId = "shopper-456";
+        Map<String, String> body = Map.of("shopperId", shopperId);
+
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        Query mockQuery = mock(Query.class);
+        ApiFuture<QuerySnapshot> mockQueryFuture = mock(ApiFuture.class);
+        QuerySnapshot mockQuerySnapshot = mock(QuerySnapshot.class);
+
+        List<QueryDocumentSnapshot> emptyDocs = new ArrayList<>();
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.whereEqualTo("shopperId", shopperId)).thenReturn(mockQuery);
+        when(mockQuery.get()).thenReturn(mockQueryFuture);
+        when(mockQueryFuture.get()).thenReturn(mockQuerySnapshot);
+        when(mockQuerySnapshot.getDocuments()).thenReturn(emptyDocs);
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAllDevicesAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertEquals("Logged out from all devices", responseBody.get("message"));
+    }
+    @Test
+    @DisplayName("Should handle Firestore exception in refreshTokenAsync")
+    void testRefreshTokenAsyncFirestoreException() throws Exception {
+        // Given
+        Map<String, String> body = Map.of(
+                "refreshToken", "token-123",
+                "deviceId", "device-123"
+        );
+
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        DocumentReference mockRef = mock(DocumentReference.class);
+        ApiFuture<DocumentSnapshot> mockGetFuture = mock(ApiFuture.class);
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.document("token-123")).thenReturn(mockRef);
+        when(mockRef.get()).thenReturn(mockGetFuture);
+        when(mockGetFuture.get()).thenThrow(new RuntimeException("Firestore error"));
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.refreshTokenAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertTrue(responseBody.get("error").toString().contains("Failed to refresh token"));
+    }
+    @Test
+    @DisplayName("Should handle Firestore exception in logoutAllDevicesAsync")
+    void testLogoutAllDevicesAsyncFirestoreException() throws Exception {
+        // Given
+        String shopperId = "shopper-456";
+        Map<String, String> body = Map.of("shopperId", shopperId);
+
+        CollectionReference mockCollection = mock(CollectionReference.class);
+        Query mockQuery = mock(Query.class);
+        ApiFuture<QuerySnapshot> mockQueryFuture = mock(ApiFuture.class);
+
+        when(firestore.collection("refresh_tokens")).thenReturn(mockCollection);
+        when(mockCollection.whereEqualTo("shopperId", shopperId)).thenReturn(mockQuery);
+        when(mockQuery.get()).thenReturn(mockQueryFuture);
+        when(mockQueryFuture.get()).thenThrow(new RuntimeException("Firestore error"));
+
+        // When
+        CompletableFuture<ResponseEntity<?>> result = jwtTokenService.logoutAllDevicesAsync(body);
+        ResponseEntity<?> response = result.get();
+
+        // Then
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> responseBody = (Map<String, Object>) response.getBody();
+        assertTrue(responseBody.get("error").toString().contains("Failed to logout from all devices"));
     }
 }

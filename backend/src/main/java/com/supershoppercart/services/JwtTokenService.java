@@ -1,37 +1,50 @@
 package com.supershoppercart.services;
 
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.*;
+import com.supershoppercart.models.RefreshToken;
 import com.supershoppercart.models.Shopper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
-
-@Component
+@Service
 public class JwtTokenService {
-
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenService.class);
 
     @Value("${jwt.secret}")
     private String secretKeyString;
 
-    @Value("${jwt.access-token.expiration}") // 1 hour default
+    @Value("${jwt.access-token.expiration}")
     private long accessTokenExpiration;
 
-    @Value("${jwt.refresh-token.expiration}") // 30 days default
+    @Getter
+    @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
     private SecretKey secretKey;
+    private Firestore firestore;
+
+    public JwtTokenService(Firestore firestore) {
+        this.firestore = firestore;
+    }
 
     @PostConstruct
     void initializeSecretKey() {
@@ -45,67 +58,44 @@ public class JwtTokenService {
             if (secretKeyString == null) {
                 throw new IllegalStateException("JWT secret is null - check your application.properties");
             }
-
             if (secretKeyString.trim().isEmpty()) {
                 throw new IllegalStateException("JWT secret is empty - check your application.properties");
             }
 
             byte[] keyBytes = secretKeyString.getBytes(StandardCharsets.UTF_8);
-            logger.info("Original key bytes length: {}", keyBytes.length);
 
             // Ensure the key is at least 256 bits (32 bytes) for HS256
             if (keyBytes.length < 32) {
                 logger.warn("JWT secret key is shorter than 32 bytes (256 bits). Padding it to meet HS256 requirements.");
                 byte[] paddedKey = new byte[32];
                 System.arraycopy(keyBytes, 0, paddedKey, 0, keyBytes.length);
-                // Fill the rest with zeros if needed
                 for (int i = keyBytes.length; i < 32; i++) {
                     paddedKey[i] = 0;
                 }
-                keyBytes = paddedKey; // Use the padded key
-                logger.info("Padded key bytes length: {}", keyBytes.length);
+                keyBytes = paddedKey;
             }
 
-            this.secretKey = Keys.hmacShaKeyFor(keyBytes); // Use the potentially padded keyBytes
-
+            this.secretKey = Keys.hmacShaKeyFor(keyBytes);
             logger.info("JWT secret key initialized successfully!");
 
         } catch (Exception e) {
             logger.error("FAILED to initialize JWT secret key", e);
-            logger.error("Exception type: {}", e.getClass().getSimpleName());
-            logger.error("Exception message: {}", e.getMessage());
-            if (e.getCause() != null) {
-                logger.error("Caused by: {}", e.getCause().getMessage());
-            }
             throw e;
         }
     }
 
-    public long getRefreshTokenExpiration() {
-        return refreshTokenExpiration;
-    }
-
-    /**
-     * Generate access token for shopper
-     */
     public String generateAccessToken(Shopper shopper) {
         return generateAccessToken(shopper.getId(), null);
     }
 
-    /**
-     * Generate access token with custom claims
-     */
     public String generateAccessToken(String shopperId, String deviceId) {
-
         Map<String, Object> claims = new HashMap<>();
         if (deviceId != null && !deviceId.trim().isEmpty()) {
             claims.put("deviceId", deviceId);
         }
-
         if (shopperId == null || shopperId.trim().isEmpty()) {
             throw new IllegalArgumentException("Shopper ID cannot be null or empty");
         }
-
         try {
             return Jwts.builder()
                     .claims(claims)
@@ -114,28 +104,20 @@ public class JwtTokenService {
                     .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
                     .signWith(secretKey, Jwts.SIG.HS256)
                     .compact();
-
         } catch (Exception e) {
             logger.error("Failed to generate access token for shopper: {}", shopperId, e);
             throw new RuntimeException("Token generation failed", e);
         }
     }
 
-    /**
-     * Generate refresh token for shopper
-     */
     public String generateRefreshToken(Shopper shopper) {
         return generateRefreshToken(shopper.getId());
     }
 
-    /**
-     * Generate refresh token for shopper ID
-     */
     public String generateRefreshToken(String shopperId) {
         if (shopperId == null || shopperId.trim().isEmpty()) {
             throw new IllegalArgumentException("Shopper ID cannot be null or empty");
         }
-
         try {
             return Jwts.builder()
                     .subject(shopperId)
@@ -143,76 +125,56 @@ public class JwtTokenService {
                     .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
                     .signWith(secretKey, Jwts.SIG.HS256)
                     .compact();
-
         } catch (Exception e) {
             logger.error("Failed to generate refresh token for shopper: {}", shopperId, e);
             throw new RuntimeException("Token generation failed", e);
         }
     }
 
-    /**
-     * Extract shopper ID from JWT token
-     */
     public String extractShopperId(String token) {
         if (token == null || token.trim().isEmpty()) {
             return null;
         }
-
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(secretKey)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-
             String shopperId = claims.getSubject();
-
             if (shopperId == null || shopperId.trim().isEmpty()) {
                 logger.warn("JWT subject (shopper ID) is empty or null");
                 return null;
             }
-
-            // Validate that it's a valid number format if needed
-            // Removed Long.parseLong validation as it's not universally required for shopper IDs
-            // and can be handled at a higher layer if specific ID format is enforced.
             return shopperId;
-
         } catch (JwtException e) {
             logger.debug("Invalid JWT token: {}", e.getMessage());
             return null;
         } catch (Exception e) {
-            logger.error("Unexpected error parsing JWT token", e, e.getCause()); // Log cause
+            logger.error("Unexpected error parsing JWT token", e);
             return null;
         }
     }
 
-    /**
-     * Extract all claims from token
-     */
     public Claims extractAllClaims(String token) {
         if (token == null || token.trim().isEmpty()) {
             return null;
         }
-
         try {
             return Jwts.parser()
                     .verifyWith(secretKey)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-
         } catch (JwtException e) {
             logger.debug("Invalid JWT token: {}", e.getMessage());
             return null;
         } catch (Exception e) {
-            logger.error("Unexpected error extracting claims from JWT token", e, e.getCause()); // Log cause
+            logger.error("Unexpected error extracting claims from JWT token", e);
             return null;
         }
     }
 
-    /**
-     * Check if token is expired
-     */
     public boolean isTokenExpired(String token) {
         try {
             Claims claims = extractAllClaims(token);
@@ -220,21 +182,17 @@ public class JwtTokenService {
                 Date expiration = claims.getExpiration();
                 return expiration != null && expiration.before(new Date());
             }
-            return true; // Consider invalid tokens as expired
+            return true;
         } catch (Exception e) {
             logger.debug("Error checking token expiration: {}", e.getMessage());
-            return true; // If extraction fails, consider it expired/invalid
+            return true;
         }
     }
 
-    /**
-     * Validate token for specific shopper
-     */
     public boolean isTokenValid(String token, String shopperId) {
         if (token == null || shopperId == null) {
             return false;
         }
-
         try {
             String extractedShopperId = extractShopperId(token);
             return extractedShopperId != null &&
@@ -246,14 +204,10 @@ public class JwtTokenService {
         }
     }
 
-    /**
-     * Validate if token is valid (not expired)
-     */
     public boolean isTokenValid(String token) {
         if (token == null || token.trim().isEmpty()) {
             return false;
         }
-
         try {
             return extractAllClaims(token) != null && !isTokenExpired(token);
         } catch (Exception e) {
@@ -262,9 +216,6 @@ public class JwtTokenService {
         }
     }
 
-    /**
-     * Get token expiration date
-     */
     public Date getExpirationDate(String token) {
         try {
             Claims claims = extractAllClaims(token);
@@ -275,9 +226,6 @@ public class JwtTokenService {
         }
     }
 
-    /**
-     * Get token issued date
-     */
     public Date getIssuedDate(String token) {
         try {
             Claims claims = extractAllClaims(token);
@@ -288,18 +236,13 @@ public class JwtTokenService {
         }
     }
 
-    /**
-     * Generate token pair (access + refresh)
-     */
     public TokenPair generateTokenPair(Shopper shopper) {
         String accessToken = generateAccessToken(shopper);
         String refreshToken = generateRefreshToken(shopper);
         return new TokenPair(accessToken, refreshToken);
     }
 
-    /**
-     * Token pair container class
-     */
+    @Getter
     public static class TokenPair {
         private final String accessToken;
         private final String refreshToken;
@@ -309,12 +252,137 @@ public class JwtTokenService {
             this.refreshToken = refreshToken;
         }
 
-        public String getAccessToken() {
-            return accessToken;
+    }
+
+    // ==== ASYNC FIRESTORE OPERATIONS ====
+
+    @Async
+    public CompletableFuture<Void> saveRefreshTokenAsync(String refreshToken, RefreshToken tokenRecord) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                firestore.collection("refresh_tokens").document(refreshToken).set(tokenRecord).get();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to save refresh token", e);
+            }
+        });
+    }
+
+    @Async
+    public CompletableFuture<ResponseEntity<?>> refreshTokenAsync(Map<String, String> body) {
+        String refreshToken = body.get("refreshToken");
+        String deviceId = body.get("deviceId");
+
+        if (refreshToken == null || deviceId == null) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body(Map.of("error", "Missing refreshToken or deviceId"))
+            );
         }
 
-        public String getRefreshToken() {
-            return refreshToken;
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                DocumentSnapshot doc = firestore.collection("refresh_tokens").document(refreshToken).get().get();
+                if (!doc.exists()) {
+                    logger.warn("Failed refresh attempt: Invalid refresh token [{}] for device [{}]", refreshToken, deviceId);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid refresh token"));
+                }
+
+                RefreshToken stored = doc.toObject(RefreshToken.class);
+                if (stored == null || !deviceId.equals(stored.getDeviceId()) || stored.getExpiry() < System.currentTimeMillis()) {
+                    logger.warn("Failed refresh attempt: Refresh token expired or device mismatch [{}] [{}]", refreshToken, deviceId);
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Refresh token expired or device mismatch"));
+                }
+
+                firestore.collection("refresh_tokens").document(refreshToken).delete().get();
+
+                String newAccessToken = generateAccessToken(stored.getShopperId(), deviceId);
+                String newRefreshToken = generateRefreshToken(stored.getShopperId());
+
+                RefreshToken rotated = new RefreshToken(
+                        newRefreshToken,
+                        stored.getShopperId(),
+                        deviceId,
+                        System.currentTimeMillis() + getRefreshTokenExpiration()
+                );
+
+                firestore.collection("refresh_tokens").document(newRefreshToken).set(rotated).get();
+
+                logger.info("Refresh token rotated for shopperId [{}] and device [{}]", stored.getShopperId(), deviceId);
+
+                return ResponseEntity.ok(Map.of(
+                        "accessToken", newAccessToken,
+                        "refreshToken", newRefreshToken
+                ));
+            } catch (Exception e) {
+                logger.error("Exception during refresh token: {}", e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Failed to refresh token: " + e.getMessage()));
+            }
+        });
+    }
+
+    @Async
+    public CompletableFuture<ResponseEntity<?>> logoutAsync(Map<String, String> body) {
+        String refreshToken = body.get("refreshToken");
+        String deviceId = body.get("deviceId");
+
+        if (refreshToken == null || deviceId == null) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body(Map.of("error", "Missing refreshToken or deviceId"))
+            );
         }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                DocumentReference ref = firestore.collection("refresh_tokens").document(refreshToken);
+                DocumentSnapshot doc = ref.get().get();
+
+                if (doc.exists()) {
+                    RefreshToken stored = doc.toObject(RefreshToken.class);
+                    if (stored != null && deviceId.equals(stored.getDeviceId())) {
+                        ref.delete().get();
+                        logger.info("Logout successful for device [{}] and shopperId [{}]", deviceId, stored.getShopperId());
+                        return ResponseEntity.ok(Map.of("message", "Logged out from device"));
+                    }
+                }
+
+                logger.warn("Invalid logout request for token [{}] and device [{}]", refreshToken, deviceId);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid logout request"));
+            } catch (Exception e) {
+                logger.error("Exception during logout: {}", e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Failed to logout: " + e.getMessage()));
+            }
+        });
+    }
+
+    @Async
+    public CompletableFuture<ResponseEntity<?>> logoutAllDevicesAsync(Map<String, String> body) {
+        String shopperId = body.get("shopperId");
+
+        if (shopperId == null || shopperId.isBlank()) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body(Map.of("error", "Missing shopperId"))
+            );
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                ApiFuture<QuerySnapshot> snapshot = firestore.collection("refresh_tokens")
+                        .whereEqualTo("shopperId", shopperId)
+                        .get();
+
+                List<QueryDocumentSnapshot> docs = snapshot.get().getDocuments();
+                for (DocumentSnapshot doc : docs) {
+                    doc.getReference().delete().get();
+                }
+
+                logger.info("Logout from all devices for shopperId [{}]", shopperId);
+                return ResponseEntity.ok(Map.of("message", "Logged out from all devices"));
+            } catch (Exception e) {
+                logger.error("Exception during logout-all: {}", e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", "Failed to logout from all devices: " + e.getMessage()));
+            }
+        });
     }
 }

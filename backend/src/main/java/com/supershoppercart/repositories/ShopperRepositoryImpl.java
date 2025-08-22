@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -85,5 +86,16 @@ public class ShopperRepositoryImpl implements ShopperRepository {
         for (DocumentSnapshot doc : docs) {
             doc.getReference().delete().get();
         }
+    }
+
+    @Override
+    public CompletableFuture<Optional<Shopper>> findByEmailAsync(String email) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return findByEmail(email);
+            } catch (Exception e) {
+                return Optional.empty();
+            }
+        });
     }
 }

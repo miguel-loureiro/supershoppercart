@@ -1,8 +1,11 @@
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/SuperShopperCartApplication.java
+/Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/auth/dto/DevLoginRequestDTO.java
+/Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/auth/dto/DevLoginResponseDTO.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/config/FirebaseConfig.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/config/SecurityConfig.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/AdminController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/AuthController.java
+/Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/DevAuthController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/HomeController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/controllers/ShopCartController.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/dtos/CreateShopCartRequestDTO.java
@@ -25,6 +28,7 @@
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/security/GoogleTokenVerifier.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/security/filter/JwtAuthFilter.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/seeder/ShopCartSeeder.java
+/Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/services/AuthService.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/services/FirestoreService.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/services/JwtTokenService.java
 /Users/miguelloureiro/repos/supershoppercart/backend/src/main/java/com/supershoppercart/services/ShopCartService.java

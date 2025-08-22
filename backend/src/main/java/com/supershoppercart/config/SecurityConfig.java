@@ -33,6 +33,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/v1/dev/auth/**",
                                 "/api/public/**",
                                 "/",
                                 "/status",

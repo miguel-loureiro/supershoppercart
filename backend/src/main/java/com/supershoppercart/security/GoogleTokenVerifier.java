@@ -12,6 +12,7 @@ import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 public class GoogleTokenVerifier {
@@ -21,7 +22,7 @@ public class GoogleTokenVerifier {
     @Value("${oauth.id}")
     private String googleClientId;
 
-    @Value("${app.env:prod}") // configurable via application.properties
+    @Value("${app.env:prod}")
     private String appEnv;
 
     private GoogleIdTokenVerifier verifier;
@@ -36,7 +37,6 @@ public class GoogleTokenVerifier {
 
     public GoogleIdToken.Payload verify(String idTokenString) {
         try {
-            // ✅ Development shortcut
             if ("TEST_TOKEN".equals(idTokenString) && isDevEnvironment()) {
                 logger.warn("Using TEST_TOKEN bypass for development environment");
                 GoogleIdToken.Payload fakePayload = new GoogleIdToken.Payload();
@@ -44,8 +44,6 @@ public class GoogleTokenVerifier {
                 fakePayload.set("name", "Test User");
                 return fakePayload;
             }
-
-            // ✅ Normal Google verification
             GoogleIdToken idToken = verifier.verify(idTokenString);
             if (idToken != null) {
                 GoogleIdToken.Payload payload = idToken.getPayload();
@@ -55,16 +53,14 @@ public class GoogleTokenVerifier {
                 logger.warn("Token verification failed - invalid token");
                 return null;
             }
-        } catch (GeneralSecurityException e) {
-            logger.error("Security exception during token verification", e);
-            return null;
-        } catch (IOException e) {
-            logger.error("IO exception during token verification", e);
-            return null;
-        } catch (Exception e) {
-            logger.error("Unexpected exception during token verification", e);
+        } catch (GeneralSecurityException | IOException e) {
+            logger.error("Exception during token verification", e);
             return null;
         }
+    }
+
+    public CompletableFuture<GoogleIdToken.Payload> verifyAsync(String idTokenString) {
+        return CompletableFuture.supplyAsync(() -> verify(idTokenString));
     }
 
     private boolean isDevEnvironment() {
