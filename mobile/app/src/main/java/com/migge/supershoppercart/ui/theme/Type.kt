@@ -1,4 +1,4 @@
-package com.migge.ssc.ui.theme
+package com.migge.supershoppercart.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

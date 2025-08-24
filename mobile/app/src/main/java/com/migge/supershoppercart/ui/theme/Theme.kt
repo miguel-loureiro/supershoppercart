@@ -1,6 +1,5 @@
-package com.migge.ssc.ui.theme
+package com.migge.supershoppercart.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

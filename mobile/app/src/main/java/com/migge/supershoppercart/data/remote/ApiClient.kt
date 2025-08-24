@@ -1,7 +1,7 @@
-package com.migge.ssc.data.remote
+package com.migge.supershoppercart.data.remote
 
 
-import com.migge.ssc.domain.DTO.TokenResponseDTO
+import com.migge.supershoppercart.domain.DTO.TokenResponseDTO
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory

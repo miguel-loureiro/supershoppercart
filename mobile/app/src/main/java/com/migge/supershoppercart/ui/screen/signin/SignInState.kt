@@ -1,4 +1,4 @@
-package com.migge.ssc.ui.screen.signin
+package com.migge.supershoppercart.ui.screen.signin
 
 /**
  * Representa os estados possíveis da tela de Sign-In.

@@ -1,4 +1,4 @@
-package com.migge.ssc.ui.theme
+package com.migge.supershoppercart.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

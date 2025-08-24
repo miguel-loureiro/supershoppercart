@@ -1,4 +1,4 @@
-package com.migge.ssc
+package com.migge.supershoppercart
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -6,8 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.migge.ssc.ui.screen.signin.SignInScreen
-import com.migge.ssc.ui.screen.WelcomeScreen
+import com.migge.supershoppercart.ui.screen.signin.SignInScreen
+import com.migge.supershoppercart.ui.screen.WelcomeScreen
 
 @Composable
 fun MyApp() {
@@ -30,7 +30,10 @@ fun MyApp() {
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() }
         ) {
-            SignInScreen()
+            SignInScreen(
+                navController = TODO(),
+                viewModel = TODO()
+            )
         }
     }
 }

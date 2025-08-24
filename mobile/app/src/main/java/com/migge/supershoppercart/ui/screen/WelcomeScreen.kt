@@ -1,4 +1,4 @@
-package com.migge.ssc.ui.screen
+package com.migge.supershoppercart.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

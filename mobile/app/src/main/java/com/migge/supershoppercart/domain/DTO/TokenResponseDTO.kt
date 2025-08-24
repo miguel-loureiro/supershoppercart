@@ -1,4 +1,4 @@
-package com.migge.ssc.domain.DTO
+package com.migge.supershoppercart.domain.DTO
 
 data class TokenResponseDTO(
     val accessToken: String?,
